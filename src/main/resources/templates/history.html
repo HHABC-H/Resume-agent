@@ -1,0 +1,126 @@
+﻿<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模拟面试器 · 历史记录</title>
+    <link rel="stylesheet" th:href="@{/css/theme.css}" href="/css/theme.css">
+</head>
+<body>
+<div class="page">
+    <header class="topbar">
+        <a class="brand" href="/">徐庶模拟面试器</a>
+        <nav class="nav">
+            <a href="/">首页</a>
+            <a href="/upload">上传简历</a>
+            <a href="/history" class="active">历史记录</a>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <span class="chip">后端新功能</span>
+        <h1>历史会话追踪</h1>
+        <p>这里会展示最近的简历会话，包含流程状态、评分和更新时间，便于持续复盘。</p>
+    </section>
+
+    <section class="panel" style="margin-top: 16px;">
+        <div class="footer-actions" style="margin-top: 0; margin-bottom: 12px;">
+            <button class="btn btn-primary" id="refreshBtn" type="button">刷新列表</button>
+            <a class="btn btn-secondary" href="/upload">新建一次面试</a>
+        </div>
+
+        <div id="errorMessage" class="message error" style="display: none;"></div>
+
+        <table class="table">
+            <thead>
+            <tr>
+                <th>Resume ID</th>
+                <th>状态</th>
+                <th>简历分</th>
+                <th>评估分</th>
+                <th>题目数</th>
+                <th>更新时间</th>
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody id="historyBody">
+            <tr>
+                <td colspan="7" class="muted">正在加载历史记录...</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+</div>
+
+<script>
+const historyBody = document.getElementById('historyBody');
+const errorMessage = document.getElementById('errorMessage');
+const refreshBtn = document.getElementById('refreshBtn');
+
+function formatTime(time) {
+    if (!time) return '-';
+    const date = new Date(time);
+    if (Number.isNaN(date.getTime())) return time;
+    return date.toLocaleString('zh-CN', { hour12: false });
+}
+
+function getStatusLabel(status) {
+    const labels = {
+        ANALYZED: '已分析',
+        QUESTIONS_READY: '题目已生成',
+        EVALUATED: '已评估'
+    };
+    return labels[status] || status;
+}
+
+function getActionUrl(item) {
+    if (item.status === 'EVALUATED') {
+        return `/result/${item.resumeId}`;
+    }
+    if (item.status === 'QUESTIONS_READY') {
+        return `/interview/${item.resumeId}`;
+    }
+    return `/analysis/${item.resumeId}`;
+}
+
+async function loadHistory() {
+    errorMessage.style.display = 'none';
+    historyBody.innerHTML = '<tr><td colspan="7" class="muted">正在加载历史记录...</td></tr>';
+
+    try {
+        const response = await fetch('/api/resume/history?limit=30');
+        if (!response.ok) {
+            throw new Error('获取历史记录失败');
+        }
+
+        const data = await response.json();
+        if (!Array.isArray(data) || data.length === 0) {
+            historyBody.innerHTML = '<tr><td colspan="7" class="muted">暂无历史记录，先去上传简历体验一次流程。</td></tr>';
+            return;
+        }
+
+        historyBody.innerHTML = data.map((item) => {
+            return `
+                <tr>
+                    <td>${item.resumeId}</td>
+                    <td>${getStatusLabel(item.status)}</td>
+                    <td>${item.resumeScore ?? '-'}</td>
+                    <td>${item.evaluationScore ?? '-'}</td>
+                    <td>${item.questionCount ?? 0}</td>
+                    <td>${formatTime(item.updatedAt)}</td>
+                    <td><a class="btn btn-secondary" href="${getActionUrl(item)}" style="padding:6px 12px; font-size:13px;">继续查看</a></td>
+                </tr>
+            `;
+        }).join('');
+    } catch (error) {
+        historyBody.innerHTML = '<tr><td colspan="7" class="muted">加载失败，请重试。</td></tr>';
+        errorMessage.textContent = error.message || '加载失败';
+        errorMessage.style.display = 'block';
+    }
+}
+
+refreshBtn.addEventListener('click', loadHistory);
+document.addEventListener('DOMContentLoaded', loadHistory);
+</script>
+</body>
+</html>

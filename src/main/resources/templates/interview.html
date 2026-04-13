@@ -1,0 +1,150 @@
+﻿<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模拟面试器 · 模拟面试</title>
+    <link rel="stylesheet" th:href="@{/css/theme.css}" href="/css/theme.css">
+</head>
+<body>
+<div class="page">
+    <header class="topbar">
+        <a class="brand" href="/">徐庶模拟面试器</a>
+        <nav class="nav">
+            <a href="/">首页</a>
+            <a href="/upload" class="active">上传简历</a>
+            <a href="/history">历史记录</a>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <span class="chip">步骤 3 / 4</span>
+        <h1>开始模拟面试</h1>
+        <p>问题正在按你的简历内容生成。建议回答时给出项目背景、行动方案和最终结果，提升评估准确度。</p>
+    </section>
+
+    <section class="panel" style="margin-top: 16px;">
+        <h2>答题提示</h2>
+        <ul class="list muted">
+            <li>优先用 STAR 结构组织答案（情境-任务-行动-结果）。</li>
+            <li>尽量给出真实项目中的决策与指标结果。</li>
+            <li>不会的题目可说明思路，不必空白提交。</li>
+        </ul>
+    </section>
+
+    <div id="questionsContainer" style="margin-top: 16px;">
+        <section class="panel muted">正在生成面试问题...</section>
+    </div>
+
+    <div id="buttonContainer" class="footer-actions" style="display: none;">
+        <a th:href="@{/analysis/{resumeId}(resumeId=${resumeId})}" class="btn btn-secondary">返回分析</a>
+        <button type="button" class="btn btn-primary" onclick="submitAnswers()">提交答案</button>
+    </div>
+</div>
+
+<script>
+const resumeId = window.location.pathname.split('/').pop();
+let questions = [];
+
+async function loadQuestions() {
+    try {
+        const response = await fetch(`/api/interview/${resumeId}/questions`, { method: 'POST' });
+        if (!response.ok) {
+            throw new Error('加载问题失败');
+        }
+
+        const data = await response.json();
+        questions = data.questions || [];
+        renderQuestions();
+        document.getElementById('buttonContainer').style.display = 'flex';
+    } catch (error) {
+        document.getElementById('questionsContainer').innerHTML = `
+            <section class="panel">
+                <p class="message error">${error.message}</p>
+                <button class="btn btn-warning" onclick="location.reload()">重试</button>
+            </section>
+        `;
+    }
+}
+
+function renderQuestions() {
+    const container = document.getElementById('questionsContainer');
+    if (!questions.length) {
+        container.innerHTML = '<section class="panel muted">暂无问题，请返回重新上传。</section>';
+        return;
+    }
+
+    const html = questions.map((q, index) => `
+        <section class="panel question-block" style="margin-bottom: 12px;">
+            <div class="chip">问题 ${index + 1}/${questions.length} · ${getTypeName(q.type)}</div>
+            <h2 style="margin-top: 10px; font-size: 20px;">${escapeHtml(q.question)}</h2>
+            <textarea id="answer_${index}" rows="6" placeholder="请输入你的回答"></textarea>
+        </section>
+    `).join('');
+
+    container.innerHTML = html;
+}
+
+function getTypeName(type) {
+    const mapping = {
+        PROJECT: '项目经历',
+        JAVA_BASIC: 'Java 基础',
+        JAVA_COLLECTION: 'Java 集合',
+        JAVA_CONCURRENT: 'Java 并发',
+        MYSQL: '数据库',
+        REDIS: '缓存',
+        SPRING: 'Spring 框架',
+        SPRING_BOOT: 'Spring Boot'
+    };
+    return mapping[type] || type;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function submitAnswers() {
+    const answers = {};
+    let hasBlank = false;
+
+    questions.forEach((_, index) => {
+        const answer = document.getElementById(`answer_${index}`).value.trim();
+        if (!answer) {
+            hasBlank = true;
+        }
+        answers[index] = answer;
+    });
+
+    if (hasBlank && !confirm('存在未作答题目，确认提交吗？')) {
+        return;
+    }
+
+    const submitButton = document.querySelector('#buttonContainer button');
+    submitButton.disabled = true;
+    submitButton.textContent = '提交中...';
+
+    try {
+        const response = await fetch(`/api/interview/${resumeId}/submit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(answers)
+        });
+
+        if (!response.ok) {
+            throw new Error('提交失败');
+        }
+
+        window.location.href = `/result/${resumeId}`;
+    } catch (error) {
+        alert(error.message || '提交失败，请重试');
+        submitButton.disabled = false;
+        submitButton.textContent = '提交答案';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadQuestions);
+</script>
+</body>
+</html>

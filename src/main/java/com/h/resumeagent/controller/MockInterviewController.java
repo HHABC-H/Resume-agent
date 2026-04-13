@@ -5,10 +5,8 @@ import com.h.resumeagent.common.dto.InterviewQuestions;
 import com.h.resumeagent.common.dto.ResumeData;
 import com.h.resumeagent.common.dto.ResumeScoreResult;
 import com.h.resumeagent.service.MockInterviewService;
-import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.document.Document;
 import org.springframework.ai.reader.tika.TikaDocumentReader;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -17,13 +15,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.text.PDFTextStripper;
 
 @Controller
 public class MockInterviewController {
@@ -50,6 +44,14 @@ public class MockInterviewController {
     @GetMapping("/upload")
     public String uploadPage() {
         return "upload";
+    }
+
+    /**
+     * 历史记录页面
+     */
+    @GetMapping("/history")
+    public String historyPage() {
+        return "history";
     }
 
     /**
@@ -124,6 +126,15 @@ public class MockInterviewController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(resumeData.getScoreResult());
+    }
+
+    /**
+     * 获取最近历史记录
+     */
+    @GetMapping("/api/resume/history")
+    @ResponseBody
+    public ResponseEntity<?> getHistory(@RequestParam(defaultValue = "20") int limit) {
+        return ResponseEntity.ok(interviewService.getRecentResumeHistory(limit));
     }
 
     /**

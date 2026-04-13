@@ -1,0 +1,56 @@
+﻿<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模拟面试器 · 首页</title>
+    <link rel="stylesheet" th:href="@{/css/theme.css}" href="/css/theme.css">
+</head>
+<body>
+<div class="page">
+    <header class="topbar">
+        <a class="brand" href="/">徐庶模拟面试器</a>
+        <nav class="nav">
+            <a href="/" class="active">首页</a>
+            <a href="/upload">上传简历</a>
+            <a href="/history">历史记录</a>
+        </nav>
+    </header>
+
+    <section class="hero reveal">
+        <span class="chip">AI 驱动 · 面试全流程</span>
+        <h1>从简历诊断到面试复盘，一次走完。</h1>
+        <p>上传简历后，系统会自动给出结构化评分、生成个性化问题并给出答案评估。你可以随时回看历史会话，持续迭代简历和面试表达。</p>
+        <div class="footer-actions">
+            <a href="/upload" class="btn btn-primary">开始面试准备</a>
+            <a href="/history" class="btn btn-secondary">查看历史记录</a>
+        </div>
+    </section>
+
+    <section class="grid grid-3">
+        <article class="panel reveal">
+            <h2>01 简历评分</h2>
+            <p class="muted">从项目经验、技能匹配、结构和表达多个维度打分，并输出具体建议。</p>
+        </article>
+        <article class="panel reveal" style="animation-delay: 0.1s;">
+            <h2>02 智能出题</h2>
+            <p class="muted">围绕简历经历动态生成题目，覆盖 Java、并发、数据库、Spring 等核心方向。</p>
+        </article>
+        <article class="panel reveal" style="animation-delay: 0.2s;">
+            <h2>03 深度评估</h2>
+            <p class="muted">提交答案后获得逐题反馈、分类得分和参考答案，明确下一步提升点。</p>
+        </article>
+    </section>
+
+    <section class="panel reveal" style="margin-top: 16px; animation-delay: 0.3s;">
+        <h2>使用流程</h2>
+        <ol class="list">
+            <li>上传简历文件（PDF / DOC / DOCX / TXT）</li>
+            <li>查看评分与改进建议，确认面试准备方向</li>
+            <li>完成系统生成的问题并提交答案</li>
+            <li>查看评估报告并在历史记录中持续追踪</li>
+        </ol>
+    </section>
+</div>
+</body>
+</html>

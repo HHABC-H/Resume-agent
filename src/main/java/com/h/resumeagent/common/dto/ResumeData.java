@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 /**
  * 简历数据
  */
@@ -38,4 +40,19 @@ public class ResumeData {
      * 评估结果
      */
     private InterviewEvaluation evaluation;
+
+    /**
+     * 当前流程状态：ANALYZED / QUESTIONS_READY / EVALUATED
+     */
+    private String status;
+
+    /**
+     * 创建时间
+     */
+    private LocalDateTime createdAt;
+
+    /**
+     * 最近更新时间
+     */
+    private LocalDateTime updatedAt;
 }

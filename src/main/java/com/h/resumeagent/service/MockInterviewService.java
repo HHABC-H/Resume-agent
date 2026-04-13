@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.h.resumeagent.common.dto.InterviewEvaluation;
 import com.h.resumeagent.common.dto.InterviewQuestions;
 import com.h.resumeagent.common.dto.ResumeData;
+import com.h.resumeagent.common.dto.ResumeHistoryItem;
 import com.h.resumeagent.common.dto.ResumeScoreResult;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -23,14 +24,19 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Service
 public class MockInterviewService {
 
     private static final Logger logger = LoggerFactory.getLogger(MockInterviewService.class);
+    private static final String STATUS_ANALYZED = "ANALYZED";
+    private static final String STATUS_QUESTIONS_READY = "QUESTIONS_READY";
+    private static final String STATUS_EVALUATED = "EVALUATED";
 
 
     private final DashScopeChatModel chatModel;
@@ -145,10 +151,14 @@ public class MockInterviewService {
      * 保存简历数据
      */
     public void saveResume(String resumeId, String resumeText, ResumeScoreResult scoreResult) {
+        LocalDateTime now = LocalDateTime.now();
         ResumeData resumeData = ResumeData.builder()
                 .resumeId(resumeId)
                 .resumeText(resumeText)
                 .scoreResult(scoreResult)
+                .status(STATUS_ANALYZED)
+                .createdAt(now)
+                .updatedAt(now)
                 .build();
         resumeStorage.put(resumeId, resumeData);
     }
@@ -160,6 +170,8 @@ public class MockInterviewService {
         ResumeData resumeData = resumeStorage.get(resumeId);
         if (resumeData != null) {
             resumeData.setQuestions(questions);
+            resumeData.setStatus(STATUS_QUESTIONS_READY);
+            resumeData.setUpdatedAt(LocalDateTime.now());
             resumeStorage.put(resumeId, resumeData);
         }
     }
@@ -171,6 +183,8 @@ public class MockInterviewService {
         ResumeData resumeData = resumeStorage.get(resumeId);
         if (resumeData != null) {
             resumeData.setEvaluation(evaluation);
+            resumeData.setStatus(STATUS_EVALUATED);
+            resumeData.setUpdatedAt(LocalDateTime.now());
             resumeStorage.put(resumeId, resumeData);
         }
     }
@@ -180,6 +194,44 @@ public class MockInterviewService {
      */
     public ResumeData getResumeById(String resumeId) {
         return resumeStorage.get(resumeId);
+    }
+
+    /**
+     * 获取最近简历历史记录
+     */
+    public List<ResumeHistoryItem> getRecentResumeHistory(int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, 100));
+        return resumeStorage.values().stream()
+                .sorted(Comparator.comparing(
+                        ResumeData::getUpdatedAt,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .limit(safeLimit)
+                .map(this::toHistoryItem)
+                .collect(Collectors.toList());
+    }
+
+    private ResumeHistoryItem toHistoryItem(ResumeData resumeData) {
+        int questionCount = 0;
+        if (resumeData.getQuestions() != null && resumeData.getQuestions().getQuestions() != null) {
+            questionCount = resumeData.getQuestions().getQuestions().size();
+        }
+
+        Integer evaluationScore = resumeData.getEvaluation() == null
+                ? null
+                : resumeData.getEvaluation().getOverallScore();
+        Integer resumeScore = resumeData.getScoreResult() == null
+                ? null
+                : resumeData.getScoreResult().getOverallScore();
+
+        return ResumeHistoryItem.builder()
+                .resumeId(resumeData.getResumeId())
+                .status(StringUtils.defaultIfBlank(resumeData.getStatus(), STATUS_ANALYZED))
+                .resumeScore(resumeScore)
+                .evaluationScore(evaluationScore)
+                .questionCount(questionCount)
+                .createdAt(resumeData.getCreatedAt())
+                .updatedAt(resumeData.getUpdatedAt())
+                .build();
     }
 
     private ResumeScoreResult parseResumeScoreResult(String json) throws JsonProcessingException {

@@ -1,0 +1,84 @@
+﻿<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模拟面试器 · 简历分析</title>
+    <link rel="stylesheet" th:href="@{/css/theme.css}" href="/css/theme.css">
+</head>
+<body>
+<div class="page">
+    <header class="topbar">
+        <a class="brand" href="/">徐庶模拟面试器</a>
+        <nav class="nav">
+            <a href="/">首页</a>
+            <a href="/upload" class="active">上传简历</a>
+            <a href="/history">历史记录</a>
+        </nav>
+    </header>
+
+    <section class="hero" th:if="${scoreResult}">
+        <span class="chip">步骤 2 / 4</span>
+        <h1>简历分析完成</h1>
+        <p th:text="${scoreResult.summary}">简历结构清晰，技术方向明确。</p>
+        <div style="margin-top: 18px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap;">
+            <div class="score-circle" th:text="${scoreResult.overallScore} + '/100'">85/100</div>
+            <div class="muted">综合得分基于项目经验、技能匹配、内容完整性、结构清晰度、表达专业性。</div>
+        </div>
+    </section>
+
+    <section class="grid grid-2" style="margin-top: 16px;" th:if="${scoreResult}">
+        <div class="panel">
+            <h2>评分拆解</h2>
+
+            <div class="metric">
+                <div class="muted">项目经验 <strong th:text="${scoreResult.scoreDetail.projectScore} + '/40'">32/40</strong></div>
+                <div class="progress"><span th:style="'width:' + (${scoreResult.scoreDetail.projectScore} * 100 / 40) + '%'" style="width: 80%"></span></div>
+            </div>
+            <div class="metric" style="margin-top: 10px;">
+                <div class="muted">技能匹配 <strong th:text="${scoreResult.scoreDetail.skillMatchScore} + '/20'">16/20</strong></div>
+                <div class="progress"><span th:style="'width:' + (${scoreResult.scoreDetail.skillMatchScore} * 100 / 20) + '%'" style="width: 80%"></span></div>
+            </div>
+            <div class="metric" style="margin-top: 10px;">
+                <div class="muted">内容完整性 <strong th:text="${scoreResult.scoreDetail.contentScore} + '/15'">12/15</strong></div>
+                <div class="progress"><span th:style="'width:' + (${scoreResult.scoreDetail.contentScore} * 100 / 15) + '%'" style="width: 80%"></span></div>
+            </div>
+            <div class="metric" style="margin-top: 10px;">
+                <div class="muted">结构清晰度 <strong th:text="${scoreResult.scoreDetail.structureScore} + '/15'">12/15</strong></div>
+                <div class="progress"><span th:style="'width:' + (${scoreResult.scoreDetail.structureScore} * 100 / 15) + '%'" style="width: 80%"></span></div>
+            </div>
+            <div class="metric" style="margin-top: 10px;">
+                <div class="muted">表达专业性 <strong th:text="${scoreResult.scoreDetail.expressionScore} + '/10'">8/10</strong></div>
+                <div class="progress"><span th:style="'width:' + (${scoreResult.scoreDetail.expressionScore} * 100 / 10) + '%'" style="width: 80%"></span></div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>优势亮点</h2>
+            <ul class="list">
+                <li th:each="strength : ${scoreResult.strengths}" th:text="${strength}">项目描述清晰，有量化结果。</li>
+            </ul>
+
+            <h2 style="margin-top: 22px;">改进建议</h2>
+            <div th:each="suggestion : ${scoreResult.suggestions}" class="metric" style="margin-bottom: 10px;">
+                <div>
+                    <strong th:text="${suggestion.category}">项目表达</strong>
+                    <span class="chip" th:text="${suggestion.priority}" style="margin-left: 8px;">高</span>
+                </div>
+                <p class="muted" style="margin: 8px 0 4px;" th:text="'问题：' + ${suggestion.issue}">问题：缺少技术细节。</p>
+                <p style="margin: 0;" th:text="'建议：' + ${suggestion.recommendation}">建议：补充架构和性能优化细节。</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel" th:unless="${scoreResult}">
+        <p class="muted">正在加载分析结果...</p>
+    </section>
+
+    <div class="footer-actions" th:if="${scoreResult}">
+        <a href="/upload" class="btn btn-secondary">重新上传</a>
+        <a th:href="@{/interview/{resumeId}(resumeId=${resumeId})}" class="btn btn-primary">进入模拟面试</a>
+    </div>
+</div>
+</body>
+</html>
