@@ -61,6 +61,7 @@ body {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .nav a {
@@ -75,6 +76,32 @@ body {
 
 .nav a:hover,
 .nav a.active {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.65);
+}
+
+.nav-auth {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.auth-link {
+  color: #def7f0;
+  text-decoration: none;
+  border: 1px solid rgba(222, 247, 240, 0.35);
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  background: transparent;
+}
+
+.auth-button {
+  cursor: pointer;
+}
+
+.auth-link:hover {
   background: rgba(255, 255, 255, 0.14);
   border-color: rgba(255, 255, 255, 0.65);
 }
@@ -245,7 +272,9 @@ button.btn:disabled {
 }
 
 textarea,
-input[type="text"] {
+input[type="text"],
+input[type="password"],
+input[type="email"] {
   width: 100%;
   border: 1px solid #b7dbd2;
   border-radius: 10px;
@@ -255,10 +284,23 @@ input[type="text"] {
 }
 
 textarea:focus,
-input[type="text"]:focus {
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus {
   outline: none;
   border-color: #0d9488;
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15);
+}
+
+.form-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .score-circle {

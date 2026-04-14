@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模拟面试器 · 个人中心</title>
+    <link rel="stylesheet" href="/css/theme.css">
+</head>
+<body>
+<div class="page">
+    <header class="topbar">
+        <a class="brand" href="/">徐庶模拟面试器</a>
+        <nav class="nav">
+            <a href="/">首页</a>
+            <a href="/upload">上传简历</a>
+            <a href="/history">历史记录</a>
+            <a href="/profile" class="active">个人中心</a>
+            <div id="authActions" class="nav-auth"></div>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <span class="chip">用户中心</span>
+        <h1>账号信息</h1>
+        <p>这里展示当前登录账号。后续可以继续扩展密码修改、头像、通知设置等能力。</p>
+    </section>
+
+    <section class="panel" style="margin-top: 16px;">
+        <h2>基本信息</h2>
+        <div id="profileInfo" class="muted">加载中...</div>
+        <div class="footer-actions">
+            <a href="/upload" class="btn btn-primary">开始新面试</a>
+            <a href="/history" class="btn btn-secondary">查看历史记录</a>
+            <button class="btn btn-warning" id="logoutBtnProfile" type="button">退出登录</button>
+        </div>
+    </section>
+</div>
+
+<script src="/js/auth-client.js"></script>
+<script>
+const profileInfo = document.getElementById('profileInfo');
+document.getElementById('logoutBtnProfile').addEventListener('click', () => AuthClient.logout());
+
+async function initProfile() {
+    await AuthClient.initPage({ requireAuth: true });
+    try {
+        const me = await AuthClient.fetchMe();
+        if (!me) {
+            profileInfo.textContent = '未登录';
+            return;
+        }
+        profileInfo.innerHTML = `
+            <p><strong>用户ID：</strong>${me.id}</p>
+            <p><strong>用户名：</strong>${me.username}</p>
+            <p><strong>显示名称：</strong>${me.displayName || '-'}</p>
+            <p><strong>邮箱：</strong>${me.email || '-'}</p>
+        `;
+    } catch (e) {
+        profileInfo.textContent = e.message || '加载失败';
+    }
+}
+
+initProfile();
+</script>
+</body>
+</html>

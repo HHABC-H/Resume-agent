@@ -1,10 +1,12 @@
 package com.h.resumeagent.controller;
 
+import com.h.resumeagent.auth.AuthService;
 import com.h.resumeagent.auth.AuthTokenInterceptor;
 import com.h.resumeagent.common.dto.InterviewEvaluation;
 import com.h.resumeagent.common.dto.InterviewQuestions;
 import com.h.resumeagent.common.dto.ResumeData;
 import com.h.resumeagent.common.dto.ResumeScoreResult;
+import jakarta.servlet.http.Cookie;
 import com.h.resumeagent.service.MockInterviewService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -25,11 +27,14 @@ import java.util.UUID;
 public class MockInterviewController {
 
     private static final Logger logger = LoggerFactory.getLogger(MockInterviewController.class);
+    private static final String TOKEN_COOKIE_NAME = "RA_TOKEN";
 
     private final MockInterviewService interviewService;
+    private final AuthService authService;
 
-    public MockInterviewController(MockInterviewService interviewService) {
+    public MockInterviewController(MockInterviewService interviewService, AuthService authService) {
         this.interviewService = interviewService;
+        this.authService = authService;
     }
 
     /**
@@ -38,6 +43,16 @@ public class MockInterviewController {
     @GetMapping("/")
     public String index() {
         return "index";
+    }
+
+    @GetMapping("/login")
+    public String loginPage() {
+        return "login";
+    }
+
+    @GetMapping("/profile")
+    public String profilePage() {
+        return "profile";
     }
 
     /**
@@ -111,8 +126,13 @@ public class MockInterviewController {
      * 简历分析结果页面
      */
     @GetMapping("/analysis/{resumeId}")
-    public String analysisPage(@PathVariable String resumeId, Model model) {
-        ResumeData resumeData = interviewService.getResumeById(resumeId);
+    public String analysisPage(@PathVariable String resumeId, Model model, HttpServletRequest request) {
+        Long userId = currentUserId(request);
+        if (userId == null) {
+            return "redirect:/login";
+        }
+
+        ResumeData resumeData = interviewService.getResumeById(resumeId, userId);
         if (resumeData == null) {
             return "redirect:/upload";
         }
@@ -153,8 +173,13 @@ public class MockInterviewController {
      * 模拟面试页面
      */
     @GetMapping("/interview/{resumeId}")
-    public String interviewPage(@PathVariable String resumeId, Model model) {
-        ResumeData resumeData = interviewService.getResumeById(resumeId);
+    public String interviewPage(@PathVariable String resumeId, Model model, HttpServletRequest request) {
+        Long userId = currentUserId(request);
+        if (userId == null) {
+            return "redirect:/login";
+        }
+
+        ResumeData resumeData = interviewService.getResumeById(resumeId, userId);
         if (resumeData == null) {
             return "redirect:/upload";
         }
@@ -220,8 +245,13 @@ public class MockInterviewController {
      * 查看评估结果页面
      */
     @GetMapping("/result/{resumeId}")
-    public String resultPage(@PathVariable String resumeId, Model model) {
-        ResumeData resumeData = interviewService.getResumeById(resumeId);
+    public String resultPage(@PathVariable String resumeId, Model model, HttpServletRequest request) {
+        Long userId = currentUserId(request);
+        if (userId == null) {
+            return "redirect:/login";
+        }
+
+        ResumeData resumeData = interviewService.getResumeById(resumeId, userId);
         if (resumeData == null) {
             return "redirect:/upload";
         }
@@ -234,6 +264,27 @@ public class MockInterviewController {
 
     private Long currentUserId(HttpServletRequest request) {
         Object userIdObj = request.getAttribute(AuthTokenInterceptor.CURRENT_USER_ID_ATTR);
-        return userIdObj instanceof Long ? (Long) userIdObj : null;
+        if (userIdObj instanceof Long) {
+            return (Long) userIdObj;
+        }
+        String token = resolveToken(request);
+        return authService.authenticate(token).map(user -> user.id()).orElse(null);
+    }
+
+    private String resolveToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring("Bearer ".length()).trim();
+        }
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+        for (Cookie cookie : cookies) {
+            if (TOKEN_COOKIE_NAME.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+        return null;
     }
 }

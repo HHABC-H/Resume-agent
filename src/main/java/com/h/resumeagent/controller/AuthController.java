@@ -2,6 +2,8 @@ package com.h.resumeagent.controller;
 
 import com.h.resumeagent.auth.AuthService;
 import com.h.resumeagent.persistence.entity.UserEntity;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +18,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+    private static final String TOKEN_COOKIE_NAME = "RA_TOKEN";
 
     private final AuthService authService;
 
@@ -59,15 +62,19 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(@RequestHeader(value = "Authorization", required = false) String authorization) {
-        String token = extractBearerToken(authorization);
+    public ResponseEntity<?> logout(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            HttpServletRequest request) {
+        String token = resolveToken(authorization, request);
         authService.logout(token);
         return ResponseEntity.ok(Map.of("message", "已退出登录"));
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> me(@RequestHeader(value = "Authorization", required = false) String authorization) {
-        String token = extractBearerToken(authorization);
+    public ResponseEntity<?> me(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            HttpServletRequest request) {
+        String token = resolveToken(authorization, request);
         Long userId = authService.authenticate(token).map(user -> user.id()).orElse(null);
         if (userId == null) {
             return ResponseEntity.status(401).body(Map.of("error", "未登录"));
@@ -87,6 +94,23 @@ public class AuthController {
             return null;
         }
         return StringUtils.trim(authHeader.substring("Bearer ".length()));
+    }
+
+    private String resolveToken(String authHeader, HttpServletRequest request) {
+        String token = extractBearerToken(authHeader);
+        if (StringUtils.isNotBlank(token)) {
+            return token;
+        }
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+        for (Cookie cookie : cookies) {
+            if (TOKEN_COOKIE_NAME.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+        return null;
     }
 
     public record RegisterRequest(String username, String email, String password, String displayName) {

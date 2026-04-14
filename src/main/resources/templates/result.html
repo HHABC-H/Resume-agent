@@ -14,6 +14,8 @@
             <a href="/">首页</a>
             <a href="/upload" class="active">上传简历</a>
             <a href="/history">历史记录</a>
+            <a href="/profile">个人中心</a>
+            <div id="authActions" class="nav-auth"></div>
         </nav>
     </header>
 
@@ -99,7 +101,10 @@
     </div>
 </div>
 
+<script src="/js/auth-client.js"></script>
 <script>
+AuthClient.initPage({ requireAuth: true });
+
 const tabButtons = document.querySelectorAll('.tab-btn');
 const tabPanels = document.querySelectorAll('.tab-panel');
 

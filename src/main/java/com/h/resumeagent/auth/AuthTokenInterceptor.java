@@ -1,6 +1,7 @@
 package com.h.resumeagent.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
@@ -15,6 +16,7 @@ public class AuthTokenInterceptor implements HandlerInterceptor {
 
     public static final String CURRENT_USER_ID_ATTR = "CURRENT_USER_ID";
     public static final String CURRENT_USERNAME_ATTR = "CURRENT_USERNAME";
+    private static final String TOKEN_COOKIE_NAME = "RA_TOKEN";
 
     private final AuthService authService;
     private final ObjectMapper objectMapper;
@@ -26,8 +28,7 @@ public class AuthTokenInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        String authHeader = request.getHeader("Authorization");
-        String token = extractBearerToken(authHeader);
+        String token = resolveToken(request);
         if (StringUtils.isBlank(token)) {
             unauthorized(response, "未登录，请先登录");
             return false;
@@ -51,6 +52,23 @@ public class AuthTokenInterceptor implements HandlerInterceptor {
             return null;
         }
         return StringUtils.trim(authHeader.substring("Bearer ".length()));
+    }
+
+    private String resolveToken(HttpServletRequest request) {
+        String token = extractBearerToken(request.getHeader("Authorization"));
+        if (StringUtils.isNotBlank(token)) {
+            return token;
+        }
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+        for (Cookie cookie : cookies) {
+            if (TOKEN_COOKIE_NAME.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+        return null;
     }
 
     private void unauthorized(HttpServletResponse response, String message) {
