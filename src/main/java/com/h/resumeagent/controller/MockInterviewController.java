@@ -1,10 +1,12 @@
 package com.h.resumeagent.controller;
 
+import com.h.resumeagent.auth.AuthTokenInterceptor;
 import com.h.resumeagent.common.dto.InterviewEvaluation;
 import com.h.resumeagent.common.dto.InterviewQuestions;
 import com.h.resumeagent.common.dto.ResumeData;
 import com.h.resumeagent.common.dto.ResumeScoreResult;
 import com.h.resumeagent.service.MockInterviewService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.reader.tika.TikaDocumentReader;
@@ -59,10 +61,13 @@ public class MockInterviewController {
      */
     @PostMapping("/api/resume/upload")
     @ResponseBody
-    public ResponseEntity<?> uploadResume(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "userId", required = false) Long userId) {
+    public ResponseEntity<?> uploadResume(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
         try {
+            Long userId = currentUserId(request);
+            if (userId == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "未登录"));
+            }
+
             if (file.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "文件不能为空"));
             }
@@ -122,8 +127,9 @@ public class MockInterviewController {
      */
     @GetMapping("/api/resume/{resumeId}/analysis")
     @ResponseBody
-    public ResponseEntity<?> getResumeAnalysis(@PathVariable String resumeId) {
-        ResumeData resumeData = interviewService.getResumeById(resumeId);
+    public ResponseEntity<?> getResumeAnalysis(@PathVariable String resumeId, HttpServletRequest request) {
+        Long userId = currentUserId(request);
+        ResumeData resumeData = interviewService.getResumeById(resumeId, userId);
         if (resumeData == null) {
             return ResponseEntity.notFound().build();
         }
@@ -135,9 +141,11 @@ public class MockInterviewController {
      */
     @GetMapping("/api/resume/history")
     @ResponseBody
-    public ResponseEntity<?> getHistory(
-            @RequestParam(defaultValue = "20") int limit,
-            @RequestParam(value = "userId", required = false) Long userId) {
+    public ResponseEntity<?> getHistory(@RequestParam(defaultValue = "20") int limit, HttpServletRequest request) {
+        Long userId = currentUserId(request);
+        if (userId == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "未登录"));
+        }
         return ResponseEntity.ok(interviewService.getRecentResumeHistory(userId, limit));
     }
 
@@ -160,9 +168,10 @@ public class MockInterviewController {
      */
     @PostMapping("/api/interview/{resumeId}/questions")
     @ResponseBody
-    public ResponseEntity<?> generateQuestions(@PathVariable String resumeId) {
+    public ResponseEntity<?> generateQuestions(@PathVariable String resumeId, HttpServletRequest request) {
         try {
-            ResumeData resumeData = interviewService.getResumeById(resumeId);
+            Long userId = currentUserId(request);
+            ResumeData resumeData = interviewService.getResumeById(resumeId, userId);
             if (resumeData == null) {
                 return ResponseEntity.notFound().build();
             }
@@ -184,9 +193,11 @@ public class MockInterviewController {
     @ResponseBody
     public ResponseEntity<?> submitAnswers(
             @PathVariable String resumeId,
-            @RequestBody Map<Integer, String> answers) {
+            @RequestBody Map<Integer, String> answers,
+            HttpServletRequest request) {
         try {
-            ResumeData resumeData = interviewService.getResumeById(resumeId);
+            Long userId = currentUserId(request);
+            ResumeData resumeData = interviewService.getResumeById(resumeId, userId);
             if (resumeData == null) {
                 return ResponseEntity.notFound().build();
             }
@@ -219,5 +230,10 @@ public class MockInterviewController {
         model.addAttribute("evaluation", resumeData.getEvaluation());
         model.addAttribute("questions", resumeData.getQuestions());
         return "result";
+    }
+
+    private Long currentUserId(HttpServletRequest request) {
+        Object userIdObj = request.getAttribute(AuthTokenInterceptor.CURRENT_USER_ID_ATTR);
+        return userIdObj instanceof Long ? (Long) userIdObj : null;
     }
 }

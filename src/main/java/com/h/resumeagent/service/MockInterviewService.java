@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -230,10 +231,18 @@ public class MockInterviewService {
 
     @Transactional(readOnly = true)
     public ResumeData getResumeById(String resumeId) {
+        return getResumeById(resumeId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public ResumeData getResumeById(String resumeId, Long userId) {
         if (!isPersistenceEnabled()) {
             return resumeStorage.get(resumeId);
         }
-        return resumeSessionRepository.findByResumeId(resumeId).map(this::toResumeData).orElse(null);
+        return resumeSessionRepository.findByResumeId(resumeId)
+                .filter(session -> userId == null || Objects.equals(session.getUserId(), userId))
+                .map(this::toResumeData)
+                .orElse(null);
     }
 
     public List<ResumeHistoryItem> getRecentResumeHistory(int limit) {
