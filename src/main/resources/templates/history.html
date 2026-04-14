@@ -38,6 +38,7 @@
             <tr>
                 <th>Resume ID</th>
                 <th>状态</th>
+                <th>岗位</th>
                 <th>简历分</th>
                 <th>评估分</th>
                 <th>题目数</th>
@@ -47,7 +48,7 @@
             </thead>
             <tbody id="historyBody">
             <tr>
-                <td colspan="7" class="muted">正在加载历史记录...</td>
+                <td colspan="8" class="muted">正在加载历史记录...</td>
             </tr>
             </tbody>
         </table>
@@ -78,6 +79,15 @@ function getStatusLabel(status) {
     return labels[status] || status;
 }
 
+function getPositionLabel(positionType) {
+    const labels = {
+        BACKEND_JAVA: '后端 Java',
+        FRONTEND: '前端',
+        ALGORITHM: '算法'
+    };
+    return labels[positionType] || '后端 Java';
+}
+
 function getActionUrl(item) {
     if (item.status === 'EVALUATED') {
         return `/result/${item.resumeId}`;
@@ -90,7 +100,7 @@ function getActionUrl(item) {
 
 async function loadHistory() {
     errorMessage.style.display = 'none';
-    historyBody.innerHTML = '<tr><td colspan="7" class="muted">正在加载历史记录...</td></tr>';
+    historyBody.innerHTML = '<tr><td colspan="8" class="muted">正在加载历史记录...</td></tr>';
 
     try {
         const response = await AuthClient.authFetch('/api/resume/history?limit=30');
@@ -100,7 +110,7 @@ async function loadHistory() {
 
         const data = await response.json();
         if (!Array.isArray(data) || data.length === 0) {
-            historyBody.innerHTML = '<tr><td colspan="7" class="muted">暂无历史记录，先去上传简历体验一次流程。</td></tr>';
+            historyBody.innerHTML = '<tr><td colspan="8" class="muted">暂无历史记录，先去上传简历体验一次流程。</td></tr>';
             return;
         }
 
@@ -109,6 +119,7 @@ async function loadHistory() {
                 <tr>
                     <td>${item.resumeId}</td>
                     <td>${getStatusLabel(item.status)}</td>
+                    <td>${getPositionLabel(item.positionType)}</td>
                     <td>${item.resumeScore ?? '-'}</td>
                     <td>${item.evaluationScore ?? '-'}</td>
                     <td>${item.questionCount ?? 0}</td>
@@ -118,7 +129,7 @@ async function loadHistory() {
             `;
         }).join('');
     } catch (error) {
-        historyBody.innerHTML = '<tr><td colspan="7" class="muted">加载失败，请重试。</td></tr>';
+        historyBody.innerHTML = '<tr><td colspan="8" class="muted">加载失败，请重试。</td></tr>';
         errorMessage.textContent = error.message || '加载失败';
         errorMessage.style.display = 'block';
     }

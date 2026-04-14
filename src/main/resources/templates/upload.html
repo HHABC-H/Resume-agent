@@ -27,6 +27,15 @@
 
     <section class="panel reveal" style="margin-top: 16px;">
         <form id="uploadForm" enctype="multipart/form-data">
+            <div class="form-grid" style="margin-bottom: 12px;">
+                <label for="positionType"><strong>目标岗位</strong></label>
+                <select id="positionType">
+                    <option value="BACKEND_JAVA">后端 Java</option>
+                    <option value="FRONTEND">前端</option>
+                    <option value="ALGORITHM">算法</option>
+                </select>
+            </div>
+
             <div id="uploadArea" class="upload-zone">
                 <div style="font-size: 36px;">📄</div>
                 <p><strong>点击选择文件</strong> 或拖拽文件到这里</p>
@@ -58,6 +67,7 @@ const fileInfo = document.getElementById('fileInfo');
 const errorMessage = document.getElementById('errorMessage');
 const loading = document.getElementById('loading');
 const uploadForm = document.getElementById('uploadForm');
+const positionType = document.getElementById('positionType');
 
 let selectedFile = null;
 
@@ -131,6 +141,7 @@ uploadForm.addEventListener('submit', async (e) => {
 
     const formData = new FormData();
     formData.append('file', selectedFile);
+    formData.append('positionType', positionType.value);
 
     submitBtn.disabled = true;
     loading.style.display = 'block';

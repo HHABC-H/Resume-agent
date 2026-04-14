@@ -76,7 +76,10 @@ public class MockInterviewController {
      */
     @PostMapping("/api/resume/upload")
     @ResponseBody
-    public ResponseEntity<?> uploadResume(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
+    public ResponseEntity<?> uploadResume(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "positionType", required = false, defaultValue = MockInterviewService.POSITION_BACKEND_JAVA) String positionType,
+            HttpServletRequest request) {
         try {
             Long userId = currentUserId(request);
             if (userId == null) {
@@ -106,10 +109,13 @@ public class MockInterviewController {
             
             // 保存简历文本到会话（简化实现，实际应该用 session）
             String resumeId = UUID.randomUUID().toString();
-            interviewService.saveResume(resumeId, resumeText, scoreResult, userId);
+            String normalizedPositionType = interviewService.normalizePositionType(positionType);
+            interviewService.saveResume(resumeId, resumeText, scoreResult, userId, normalizedPositionType);
             
             Map<String, Object> response = new HashMap<>();
             response.put("resumeId", resumeId);
+            response.put("positionType", normalizedPositionType);
+            response.put("positionTypeLabel", interviewService.displayPositionType(normalizedPositionType));
             response.put("scoreResult", scoreResult);
             
             return ResponseEntity.ok(response);
@@ -201,7 +207,10 @@ public class MockInterviewController {
                 return ResponseEntity.notFound().build();
             }
             
-            InterviewQuestions questions = interviewService.generateInterviewQuestions(resumeData.getResumeText());
+            InterviewQuestions questions = interviewService.generateInterviewQuestions(
+                    resumeData.getResumeText(),
+                    resumeData.getPositionType()
+            );
             interviewService.saveQuestions(resumeId, questions);
             
             return ResponseEntity.ok(questions);
@@ -229,6 +238,7 @@ public class MockInterviewController {
             
             InterviewEvaluation evaluation = interviewService.evaluateAnswers(
                 resumeData.getResumeText(), 
+                resumeData.getPositionType(),
                 resumeData.getQuestions(), 
                 answers
             );

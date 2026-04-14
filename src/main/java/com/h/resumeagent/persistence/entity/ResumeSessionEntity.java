@@ -32,6 +32,7 @@ import java.util.List;
         indexes = {
                 @Index(name = "idx_resume_session_user_id", columnList = "user_id"),
                 @Index(name = "idx_resume_session_status", columnList = "status"),
+                @Index(name = "idx_resume_session_position_type", columnList = "position_type"),
                 @Index(name = "idx_resume_session_updated_at", columnList = "updated_at")
         }
 )
@@ -53,6 +54,9 @@ public class ResumeSessionEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private ResumeStatus status;
+
+    @Column(name = "position_type", nullable = false, length = 32)
+    private String positionType;
 
     @Column(name = "resume_overall_score")
     private Integer resumeOverallScore;

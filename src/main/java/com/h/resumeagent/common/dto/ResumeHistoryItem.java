@@ -20,6 +20,8 @@ public class ResumeHistoryItem {
 
     private String status;
 
+    private String positionType;
+
     private Integer resumeScore;
 
     private Integer evaluationScore;

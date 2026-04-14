@@ -25,6 +25,11 @@ public class ResumeData {
      * 简历文本内容
      */
     private String resumeText;
+
+    /**
+     * 面试岗位类型：BACKEND_JAVA / FRONTEND / ALGORITHM
+     */
+    private String positionType;
     
     /**
      * 评分结果

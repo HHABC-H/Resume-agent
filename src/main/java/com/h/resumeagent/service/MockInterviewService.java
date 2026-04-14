@@ -58,6 +58,9 @@ public class MockInterviewService {
     private static final String STATUS_ANALYZED = "ANALYZED";
     private static final String STATUS_QUESTIONS_READY = "QUESTIONS_READY";
     private static final String STATUS_EVALUATED = "EVALUATED";
+    public static final String POSITION_BACKEND_JAVA = "BACKEND_JAVA";
+    public static final String POSITION_FRONTEND = "FRONTEND";
+    public static final String POSITION_ALGORITHM = "ALGORITHM";
 
     private final DashScopeChatModel chatModel;
     private final ObjectMapper objectMapper;
@@ -96,24 +99,36 @@ public class MockInterviewService {
         return parseResumeScoreResult(response);
     }
 
-    public InterviewQuestions generateInterviewQuestions(String resumeText) throws JsonProcessingException {
+    public InterviewQuestions generateInterviewQuestions(String resumeText, String positionType) throws JsonProcessingException {
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(interviewQuestionsSystemPromptresource));
+        String normalizedPositionType = normalizePositionType(positionType);
         String userPrompt = """
                 请根据以下简历内容生成面试问题：
+                目标岗位：%s
+                岗位要求：%s
                 ## 候选人简历
                 %s
-                """.formatted(resumeText);
+                """.formatted(
+                normalizedPositionType,
+                buildQuestionPositionContext(normalizedPositionType),
+                resumeText
+        );
         messages.add(new UserMessage(userPrompt));
         Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder().temperature(0.7).build());
         String response = chatModel.call(prompt).getResult().getOutput().getText();
         return parseInterviewQuestions(response);
     }
 
-    public InterviewEvaluation evaluateAnswers(String resumeText, InterviewQuestions questions, Map<Integer, String> answers)
+    public InterviewEvaluation evaluateAnswers(
+            String resumeText,
+            String positionType,
+            InterviewQuestions questions,
+            Map<Integer, String> answers)
             throws JsonProcessingException {
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(interviewEvaluationSystemPromptresource));
+        String normalizedPositionType = normalizePositionType(positionType);
         StringBuilder qaText = new StringBuilder();
         for (int i = 0; i < questions.getQuestions().size(); i++) {
             InterviewQuestions.Question q = questions.getQuestions().get(i);
@@ -121,22 +136,41 @@ public class MockInterviewService {
             qaText.append("问题 %d [%s]: %s%n".formatted(i + 1, q.getType(), q.getQuestion()));
             qaText.append("候选人回答：%s%n%n".formatted(answer));
         }
-        messages.add(new UserMessage("请评估以下面试问答：\n%s".formatted(qaText)));
+        messages.add(new UserMessage("""
+                请评估以下面试问答：
+                目标岗位：%s
+                评分侧重点：%s
+                %s
+                """.formatted(
+                normalizedPositionType,
+                buildEvaluationPositionContext(normalizedPositionType),
+                qaText
+        )));
         Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder().temperature(0.7).build());
         String response = chatModel.call(prompt).getResult().getOutput().getText();
         return parseInterviewEvaluation(response);
     }
 
     public void saveResume(String resumeId, String resumeText, ResumeScoreResult scoreResult) {
-        saveResume(resumeId, resumeText, scoreResult, null);
+        saveResume(resumeId, resumeText, scoreResult, null, POSITION_BACKEND_JAVA);
+    }
+
+    public void saveResume(String resumeId, String resumeText, ResumeScoreResult scoreResult, Long userId) {
+        saveResume(resumeId, resumeText, scoreResult, userId, POSITION_BACKEND_JAVA);
     }
 
     @Transactional
-    public void saveResume(String resumeId, String resumeText, ResumeScoreResult scoreResult, Long userId) {
+    public void saveResume(
+            String resumeId,
+            String resumeText,
+            ResumeScoreResult scoreResult,
+            Long userId,
+            String positionType) {
+        String normalizedPositionType = normalizePositionType(positionType);
         if (!isPersistenceEnabled()) {
             LocalDateTime now = LocalDateTime.now();
             resumeStorage.put(resumeId, ResumeData.builder()
-                    .resumeId(resumeId).resumeText(resumeText).scoreResult(scoreResult)
+                    .resumeId(resumeId).resumeText(resumeText).positionType(normalizedPositionType).scoreResult(scoreResult)
                     .status(STATUS_ANALYZED).createdAt(now).updatedAt(now).build());
             return;
         }
@@ -154,6 +188,7 @@ public class MockInterviewService {
         session.setResumeId(resumeId);
         session.setResumeText(resumeText);
         session.setStatus(ResumeStatus.ANALYZED);
+        session.setPositionType(normalizedPositionType);
         session.setResumeOverallScore(scoreResult == null ? null : scoreResult.getOverallScore());
         session.setResumeSummary(scoreResult == null ? null : scoreResult.getSummary());
         ResumeScoreResult.ScoreDetail d = scoreResult == null ? null : scoreResult.getScoreDetail();
@@ -464,6 +499,7 @@ public class MockInterviewService {
         return ResumeData.builder()
                 .resumeId(s.getResumeId())
                 .resumeText(s.getResumeText())
+                .positionType(normalizePositionType(s.getPositionType()))
                 .scoreResult(score)
                 .questions(questions)
                 .evaluation(eval)
@@ -479,6 +515,7 @@ public class MockInterviewService {
         Integer resumeScore = d.getScoreResult() == null ? null : d.getScoreResult().getOverallScore();
         return ResumeHistoryItem.builder()
                 .resumeId(d.getResumeId()).status(StringUtils.defaultIfBlank(d.getStatus(), STATUS_ANALYZED))
+                .positionType(normalizePositionType(d.getPositionType()))
                 .resumeScore(resumeScore).evaluationScore(evalScore).questionCount(questionCount)
                 .createdAt(d.getCreatedAt()).updatedAt(d.getUpdatedAt()).build();
     }
@@ -487,12 +524,55 @@ public class MockInterviewService {
         return ResumeHistoryItem.builder()
                 .resumeId(v.getResumeId())
                 .status(v.getStatus() == null ? STATUS_ANALYZED : v.getStatus().name())
+                .positionType(normalizePositionType(v.getPositionType()))
                 .resumeScore(v.getResumeOverallScore())
                 .evaluationScore(v.getEvaluationOverallScore())
                 .questionCount(v.getQuestionCount() == null ? 0 : v.getQuestionCount().intValue())
                 .createdAt(v.getCreatedAt())
                 .updatedAt(v.getUpdatedAt())
                 .build();
+    }
+
+    public String normalizePositionType(String positionType) {
+        if (StringUtils.isBlank(positionType)) {
+            return POSITION_BACKEND_JAVA;
+        }
+        String normalized = positionType.trim().toUpperCase();
+        if (POSITION_FRONTEND.equals(normalized) || POSITION_ALGORITHM.equals(normalized)) {
+            return normalized;
+        }
+        return POSITION_BACKEND_JAVA;
+    }
+
+    public String displayPositionType(String positionType) {
+        String normalized = normalizePositionType(positionType);
+        return switch (normalized) {
+            case POSITION_FRONTEND -> "前端";
+            case POSITION_ALGORITHM -> "算法";
+            default -> "后端Java";
+        };
+    }
+
+    private String buildQuestionPositionContext(String normalizedPositionType) {
+        return switch (normalizedPositionType) {
+            case POSITION_FRONTEND ->
+                    "聚焦 HTML/CSS/JavaScript/TypeScript、Vue/React、浏览器渲染机制、性能优化、前端工程化与调试。";
+            case POSITION_ALGORITHM ->
+                    "聚焦数据结构、算法设计、复杂度分析、边界条件处理、代码正确性与优化思路。";
+            default ->
+                    "聚焦 Java 后端基础、并发、JVM、数据库、缓存、Spring 生态、系统设计与性能优化。";
+        };
+    }
+
+    private String buildEvaluationPositionContext(String normalizedPositionType) {
+        return switch (normalizedPositionType) {
+            case POSITION_FRONTEND ->
+                    "重点看前端技术深度、工程化实践、性能与兼容性处理能力、问题定位与用户体验意识。";
+            case POSITION_ALGORITHM ->
+                    "重点看建模能力、算法正确性、复杂度控制、边界分析、表达清晰度和可实现性。";
+            default ->
+                    "重点看后端技术深度、系统设计思维、性能与稳定性意识、工程实践与表达完整性。";
+        };
     }
 
     private ResumeScoreResult parseResumeScoreResult(String json) throws JsonProcessingException {

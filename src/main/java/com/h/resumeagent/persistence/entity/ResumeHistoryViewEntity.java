@@ -40,6 +40,9 @@ public class ResumeHistoryViewEntity {
     @Column(name = "status", length = 20)
     private ResumeStatus status;
 
+    @Column(name = "position_type", length = 32)
+    private String positionType;
+
     @Column(name = "resume_overall_score")
     private Integer resumeOverallScore;
 

@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS `resume_session` (
   `resume_id` VARCHAR(64) NOT NULL COMMENT '业务简历ID(UUID)',
   `resume_text` MEDIUMTEXT NOT NULL COMMENT '简历原文',
   `status` ENUM('ANALYZED', 'QUESTIONS_READY', 'EVALUATED') NOT NULL DEFAULT 'ANALYZED' COMMENT '流程状态',
+  `position_type` VARCHAR(32) NOT NULL DEFAULT 'BACKEND_JAVA' COMMENT '岗位类型：BACKEND_JAVA/FRONTEND/ALGORITHM',
 
   `resume_overall_score` INT NULL COMMENT '简历总分',
   `score_project` INT NULL COMMENT '项目经验分',
@@ -74,6 +75,7 @@ CREATE TABLE IF NOT EXISTS `resume_session` (
   UNIQUE KEY `uk_resume_session_resume_id` (`resume_id`),
   KEY `idx_resume_session_user_id` (`user_id`),
   KEY `idx_resume_session_status` (`status`),
+  KEY `idx_resume_session_position_type` (`position_type`),
   KEY `idx_resume_session_updated_at` (`updated_at`),
 
   CONSTRAINT `fk_resume_session_user`
@@ -87,6 +89,12 @@ ALTER TABLE `resume_session`
 
 ALTER TABLE `resume_session`
   ADD INDEX IF NOT EXISTS `idx_resume_session_user_id` (`user_id`);
+
+ALTER TABLE `resume_session`
+  ADD COLUMN IF NOT EXISTS `position_type` VARCHAR(32) NOT NULL DEFAULT 'BACKEND_JAVA' COMMENT '岗位类型：BACKEND_JAVA/FRONTEND/ALGORITHM' AFTER `status`;
+
+ALTER TABLE `resume_session`
+  ADD INDEX IF NOT EXISTS `idx_resume_session_position_type` (`position_type`);
 
 -- 3.2) 兼容老库：补外键（MySQL 无 ADD CONSTRAINT IF NOT EXISTS，使用动态 SQL）
 SET @fk_exists := (
@@ -250,6 +258,7 @@ SELECT
   u.`display_name`,
   rs.`resume_id`,
   rs.`status`,
+  rs.`position_type`,
   rs.`resume_overall_score`,
   rs.`evaluation_overall_score`,
   (SELECT COUNT(*) FROM `interview_question` iq WHERE iq.`resume_session_id` = rs.`id`) AS `question_count`,
