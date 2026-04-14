@@ -59,7 +59,9 @@ public class MockInterviewController {
      */
     @PostMapping("/api/resume/upload")
     @ResponseBody
-    public ResponseEntity<?> uploadResume(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> uploadResume(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "userId", required = false) Long userId) {
         try {
             if (file.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "文件不能为空"));
@@ -84,7 +86,7 @@ public class MockInterviewController {
             
             // 保存简历文本到会话（简化实现，实际应该用 session）
             String resumeId = UUID.randomUUID().toString();
-            interviewService.saveResume(resumeId, resumeText, scoreResult);
+            interviewService.saveResume(resumeId, resumeText, scoreResult, userId);
             
             Map<String, Object> response = new HashMap<>();
             response.put("resumeId", resumeId);
@@ -133,8 +135,10 @@ public class MockInterviewController {
      */
     @GetMapping("/api/resume/history")
     @ResponseBody
-    public ResponseEntity<?> getHistory(@RequestParam(defaultValue = "20") int limit) {
-        return ResponseEntity.ok(interviewService.getRecentResumeHistory(limit));
+    public ResponseEntity<?> getHistory(
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(value = "userId", required = false) Long userId) {
+        return ResponseEntity.ok(interviewService.getRecentResumeHistory(userId, limit));
     }
 
     /**

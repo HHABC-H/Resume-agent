@@ -10,6 +10,20 @@ import com.h.resumeagent.common.dto.InterviewQuestions;
 import com.h.resumeagent.common.dto.ResumeData;
 import com.h.resumeagent.common.dto.ResumeHistoryItem;
 import com.h.resumeagent.common.dto.ResumeScoreResult;
+import com.h.resumeagent.persistence.entity.EvaluationCategoryScoreEntity;
+import com.h.resumeagent.persistence.entity.EvaluationImprovementEntity;
+import com.h.resumeagent.persistence.entity.EvaluationQuestionDetailEntity;
+import com.h.resumeagent.persistence.entity.EvaluationReferenceAnswerEntity;
+import com.h.resumeagent.persistence.entity.EvaluationReferenceKeyPointEntity;
+import com.h.resumeagent.persistence.entity.EvaluationStrengthEntity;
+import com.h.resumeagent.persistence.entity.InterviewQuestionEntity;
+import com.h.resumeagent.persistence.entity.ResumeHistoryViewEntity;
+import com.h.resumeagent.persistence.entity.ResumeSessionEntity;
+import com.h.resumeagent.persistence.entity.ResumeStatus;
+import com.h.resumeagent.persistence.entity.ResumeStrengthEntity;
+import com.h.resumeagent.persistence.entity.ResumeSuggestionEntity;
+import com.h.resumeagent.persistence.repository.ResumeHistoryViewRepository;
+import com.h.resumeagent.persistence.repository.ResumeSessionRepository;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,232 +32,466 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
-import org.springframework.ai.chat.prompt.SystemPromptTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
 public class MockInterviewService {
-
     private static final Logger logger = LoggerFactory.getLogger(MockInterviewService.class);
     private static final String STATUS_ANALYZED = "ANALYZED";
     private static final String STATUS_QUESTIONS_READY = "QUESTIONS_READY";
     private static final String STATUS_EVALUATED = "EVALUATED";
 
-
     private final DashScopeChatModel chatModel;
     private final ObjectMapper objectMapper;
-
-    // 简单的内存存储（生产环境应该使用数据库或 Redis）
     private final Map<String, ResumeData> resumeStorage = new ConcurrentHashMap<>();
+
+    @Autowired(required = false)
+    private ResumeSessionRepository resumeSessionRepository;
+
+    @Autowired(required = false)
+    private ResumeHistoryViewRepository resumeHistoryViewRepository;
 
     @Value("classpath:/prompt/resume-analysis-system.st")
     Resource resumeAnalysisSystemPromptResource;
+
     @Value("classpath:/prompt/interview-evaluation-system.st")
     Resource interviewEvaluationSystemPromptresource;
+
     @Value("classpath:/prompt/interview-question-system.st")
     Resource interviewQuestionsSystemPromptresource;
+
     @Value("classpath:/prompt/resume-analysis-user.st")
     Resource resumeAnalysisUserresource;
-
 
     public MockInterviewService(DashScopeChatModel chatModel, ObjectMapper objectMapper) {
         this.chatModel = chatModel;
         this.objectMapper = objectMapper;
     }
 
-    /**
-     * 评分简历
-     */
     public ResumeScoreResult scoreResume(String resumeText) throws IOException {
-        logger.info("开始评分简历：{}", resumeText);
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(resumeAnalysisSystemPromptResource));
-
-
-        // 构建用户提示
         PromptTemplate promptTemplate = new PromptTemplate(resumeAnalysisUserresource.getContentAsString(StandardCharsets.UTF_8));
-        messages.add(new UserMessage( promptTemplate.render(Map.of("resumeText", resumeText))));
-        
-        Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder()
-                .temperature(0.7)
-                .build());
-        
+        messages.add(new UserMessage(promptTemplate.render(Map.of("resumeText", resumeText))));
+        Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder().temperature(0.7).build());
         String response = chatModel.call(prompt).getResult().getOutput().getText();
-        logger.info("简历评分 AI 响应：{}", response);
-        
-        // 解析 JSON 响应
         return parseResumeScoreResult(response);
     }
 
-    /**
-     * 生成面试问题
-     */
     public InterviewQuestions generateInterviewQuestions(String resumeText) throws JsonProcessingException {
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(interviewQuestionsSystemPromptresource));
-        
         String userPrompt = """
                 请根据以下简历内容生成面试问题：
-                
                 ## 候选人简历
                 %s
                 """.formatted(resumeText);
-        
         messages.add(new UserMessage(userPrompt));
-        
-        Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder()
-                .temperature(0.7)
-                .build());
-        
+        Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder().temperature(0.7).build());
         String response = chatModel.call(prompt).getResult().getOutput().getText();
-        logger.info("面试问题 AI 响应：{}", response);
-        
         return parseInterviewQuestions(response);
     }
 
-    /**
-     * 评估答案
-     */
-    public InterviewEvaluation evaluateAnswers(
-            String resumeText,
-            InterviewQuestions questions,
-            Map<Integer, String> answers) throws JsonProcessingException {
-        
+    public InterviewEvaluation evaluateAnswers(String resumeText, InterviewQuestions questions, Map<Integer, String> answers)
+            throws JsonProcessingException {
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(interviewEvaluationSystemPromptresource));
-        
-        // 构建问题和答案的文本
         StringBuilder qaText = new StringBuilder();
         for (int i = 0; i < questions.getQuestions().size(); i++) {
             InterviewQuestions.Question q = questions.getQuestions().get(i);
-            String answer = StringUtils.isBlank(answers.get(i))? "未作答" :answers.get(i);
-            qaText.append("问题 %d [%s]: %s\n".formatted(i + 1, q.getType(), q.getQuestion()));
-            qaText.append("候选人回答：%s\n\n".formatted(answer));
+            String answer = StringUtils.isBlank(answers.get(i)) ? "未作答" : answers.get(i);
+            qaText.append("问题 %d [%s]: %s%n".formatted(i + 1, q.getType(), q.getQuestion()));
+            qaText.append("候选人回答：%s%n%n".formatted(answer));
         }
-        
-        String userPrompt = """
-                请评估以下面试问答： 
-                %s 
-                """.formatted( qaText.toString());
-        
-        messages.add(new UserMessage(userPrompt));
-        
-        Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder()
-                .temperature(0.7)
-                .build());
-        
+        messages.add(new UserMessage("请评估以下面试问答：\n%s".formatted(qaText)));
+        Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder().temperature(0.7).build());
         String response = chatModel.call(prompt).getResult().getOutput().getText();
-        logger.info("答案评估 AI 响应：{}", response);
-
         return parseInterviewEvaluation(response);
     }
 
-    /**
-     * 保存简历数据
-     */
     public void saveResume(String resumeId, String resumeText, ResumeScoreResult scoreResult) {
+        saveResume(resumeId, resumeText, scoreResult, null);
+    }
+
+    @Transactional
+    public void saveResume(String resumeId, String resumeText, ResumeScoreResult scoreResult, Long userId) {
+        if (!isPersistenceEnabled()) {
+            LocalDateTime now = LocalDateTime.now();
+            resumeStorage.put(resumeId, ResumeData.builder()
+                    .resumeId(resumeId).resumeText(resumeText).scoreResult(scoreResult)
+                    .status(STATUS_ANALYZED).createdAt(now).updatedAt(now).build());
+            return;
+        }
+
         LocalDateTime now = LocalDateTime.now();
-        ResumeData resumeData = ResumeData.builder()
-                .resumeId(resumeId)
-                .resumeText(resumeText)
-                .scoreResult(scoreResult)
-                .status(STATUS_ANALYZED)
-                .createdAt(now)
-                .updatedAt(now)
-                .build();
-        resumeStorage.put(resumeId, resumeData);
+        ResumeSessionEntity session = resumeSessionRepository.findByResumeId(resumeId).orElseGet(ResumeSessionEntity::new);
+        ensureCollections(session);
+        if (session.getCreatedAt() == null) {
+            session.setCreatedAt(now);
+        }
+        if (userId != null) {
+            session.setUserId(userId);
+        }
+
+        session.setResumeId(resumeId);
+        session.setResumeText(resumeText);
+        session.setStatus(ResumeStatus.ANALYZED);
+        session.setResumeOverallScore(scoreResult == null ? null : scoreResult.getOverallScore());
+        session.setResumeSummary(scoreResult == null ? null : scoreResult.getSummary());
+        ResumeScoreResult.ScoreDetail d = scoreResult == null ? null : scoreResult.getScoreDetail();
+        session.setScoreProject(d == null ? null : d.getProjectScore());
+        session.setScoreSkillMatch(d == null ? null : d.getSkillMatchScore());
+        session.setScoreContent(d == null ? null : d.getContentScore());
+        session.setScoreStructure(d == null ? null : d.getStructureScore());
+        session.setScoreExpression(d == null ? null : d.getExpressionScore());
+        session.setEvaluationSessionId(null);
+        session.setEvaluationTotalQuestions(null);
+        session.setEvaluationOverallScore(null);
+        session.setEvaluationOverallFeedback(null);
+        session.setUpdatedAt(now);
+
+        replaceResumeStrengths(session, scoreResult == null ? List.of() : scoreResult.getStrengths());
+        replaceResumeSuggestions(session, scoreResult == null ? List.of() : scoreResult.getSuggestions());
+        replaceInterviewQuestions(session, List.of());
+        session.getEvaluationCategoryScores().clear();
+        session.getEvaluationQuestionDetails().clear();
+        session.getEvaluationStrengths().clear();
+        session.getEvaluationImprovements().clear();
+        session.getEvaluationReferenceAnswers().clear();
+        resumeSessionRepository.save(session);
     }
 
-    /**
-     * 保存面试问题
-     */
+    @Transactional
     public void saveQuestions(String resumeId, InterviewQuestions questions) {
-        ResumeData resumeData = resumeStorage.get(resumeId);
-        if (resumeData != null) {
-            resumeData.setQuestions(questions);
-            resumeData.setStatus(STATUS_QUESTIONS_READY);
-            resumeData.setUpdatedAt(LocalDateTime.now());
-            resumeStorage.put(resumeId, resumeData);
+        if (!isPersistenceEnabled()) {
+            ResumeData resumeData = resumeStorage.get(resumeId);
+            if (resumeData != null) {
+                resumeData.setQuestions(questions);
+                resumeData.setStatus(STATUS_QUESTIONS_READY);
+                resumeData.setUpdatedAt(LocalDateTime.now());
+                resumeStorage.put(resumeId, resumeData);
+            }
+            return;
         }
+        resumeSessionRepository.findByResumeId(resumeId).ifPresent(session -> {
+            ensureCollections(session);
+            replaceInterviewQuestions(session, questions == null ? List.of() : questions.getQuestions());
+            session.setStatus(ResumeStatus.QUESTIONS_READY);
+            session.setUpdatedAt(LocalDateTime.now());
+            resumeSessionRepository.save(session);
+        });
     }
 
-    /**
-     * 保存评估结果
-     */
+    @Transactional
     public void saveEvaluation(String resumeId, InterviewEvaluation evaluation) {
-        ResumeData resumeData = resumeStorage.get(resumeId);
-        if (resumeData != null) {
-            resumeData.setEvaluation(evaluation);
-            resumeData.setStatus(STATUS_EVALUATED);
-            resumeData.setUpdatedAt(LocalDateTime.now());
-            resumeStorage.put(resumeId, resumeData);
+        if (!isPersistenceEnabled()) {
+            ResumeData resumeData = resumeStorage.get(resumeId);
+            if (resumeData != null) {
+                resumeData.setEvaluation(evaluation);
+                resumeData.setStatus(STATUS_EVALUATED);
+                resumeData.setUpdatedAt(LocalDateTime.now());
+                resumeStorage.put(resumeId, resumeData);
+            }
+            return;
         }
+        resumeSessionRepository.findByResumeId(resumeId).ifPresent(session -> {
+            ensureCollections(session);
+            session.setEvaluationSessionId(evaluation == null ? null : evaluation.getSessionId());
+            session.setEvaluationTotalQuestions(evaluation == null ? null : evaluation.getTotalQuestions());
+            session.setEvaluationOverallScore(evaluation == null ? null : evaluation.getOverallScore());
+            session.setEvaluationOverallFeedback(evaluation == null ? null : evaluation.getOverallFeedback());
+            replaceEvalCategory(session, evaluation == null ? List.of() : evaluation.getCategoryScores());
+            replaceEvalDetail(session, evaluation == null ? List.of() : evaluation.getQuestionDetails());
+            replaceEvalStrength(session, evaluation == null ? List.of() : evaluation.getStrengths());
+            replaceEvalImprovement(session, evaluation == null ? List.of() : evaluation.getImprovements());
+            replaceEvalReference(session, evaluation == null ? List.of() : evaluation.getReferenceAnswers());
+            session.setStatus(ResumeStatus.EVALUATED);
+            session.setUpdatedAt(LocalDateTime.now());
+            resumeSessionRepository.save(session);
+        });
     }
 
-    /**
-     * 获取简历数据
-     */
+    @Transactional(readOnly = true)
     public ResumeData getResumeById(String resumeId) {
-        return resumeStorage.get(resumeId);
+        if (!isPersistenceEnabled()) {
+            return resumeStorage.get(resumeId);
+        }
+        return resumeSessionRepository.findByResumeId(resumeId).map(this::toResumeData).orElse(null);
     }
 
-    /**
-     * 获取最近简历历史记录
-     */
     public List<ResumeHistoryItem> getRecentResumeHistory(int limit) {
-        int safeLimit = Math.max(1, Math.min(limit, 100));
-        return resumeStorage.values().stream()
-                .sorted(Comparator.comparing(
-                        ResumeData::getUpdatedAt,
-                        Comparator.nullsLast(Comparator.reverseOrder())))
-                .limit(safeLimit)
-                .map(this::toHistoryItem)
-                .collect(Collectors.toList());
+        return getRecentResumeHistory(null, limit);
     }
 
-    private ResumeHistoryItem toHistoryItem(ResumeData resumeData) {
-        int questionCount = 0;
-        if (resumeData.getQuestions() != null && resumeData.getQuestions().getQuestions() != null) {
-            questionCount = resumeData.getQuestions().getQuestions().size();
+    @Transactional(readOnly = true)
+    public List<ResumeHistoryItem> getRecentResumeHistory(Long userId, int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, 100));
+        if (!isPersistenceEnabled()) {
+            return resumeStorage.values().stream()
+                    .sorted(Comparator.comparing(ResumeData::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                    .limit(safeLimit)
+                    .map(this::toHistoryItem)
+                    .collect(Collectors.toList());
+        }
+        PageRequest page = PageRequest.of(0, safeLimit);
+        List<ResumeHistoryViewEntity> rows = userId == null
+                ? resumeHistoryViewRepository.findAllByOrderByUpdatedAtDesc(page)
+                : resumeHistoryViewRepository.findByUserIdOrderByUpdatedAtDesc(userId, page);
+        return rows.stream().map(this::toHistoryItem).collect(Collectors.toList());
+    }
+
+    private boolean isPersistenceEnabled() {
+        return resumeSessionRepository != null && resumeHistoryViewRepository != null;
+    }
+
+    private void ensureCollections(ResumeSessionEntity s) {
+        if (s.getResumeStrengths() == null) s.setResumeStrengths(new ArrayList<>());
+        if (s.getResumeSuggestions() == null) s.setResumeSuggestions(new ArrayList<>());
+        if (s.getInterviewQuestions() == null) s.setInterviewQuestions(new ArrayList<>());
+        if (s.getEvaluationCategoryScores() == null) s.setEvaluationCategoryScores(new ArrayList<>());
+        if (s.getEvaluationQuestionDetails() == null) s.setEvaluationQuestionDetails(new ArrayList<>());
+        if (s.getEvaluationStrengths() == null) s.setEvaluationStrengths(new ArrayList<>());
+        if (s.getEvaluationImprovements() == null) s.setEvaluationImprovements(new ArrayList<>());
+        if (s.getEvaluationReferenceAnswers() == null) s.setEvaluationReferenceAnswers(new ArrayList<>());
+    }
+
+    private void replaceResumeStrengths(ResumeSessionEntity s, List<String> strengths) {
+        s.getResumeStrengths().clear();
+        if (strengths == null) return;
+        for (int i = 0; i < strengths.size(); i++) {
+            ResumeStrengthEntity e = new ResumeStrengthEntity();
+            e.setResumeSession(s);
+            e.setStrengthText(strengths.get(i));
+            e.setSortOrder(i);
+            s.getResumeStrengths().add(e);
+        }
+    }
+
+    private void replaceResumeSuggestions(ResumeSessionEntity s, List<ResumeScoreResult.Suggestion> suggestions) {
+        s.getResumeSuggestions().clear();
+        if (suggestions == null) return;
+        for (int i = 0; i < suggestions.size(); i++) {
+            ResumeScoreResult.Suggestion it = suggestions.get(i);
+            ResumeSuggestionEntity e = new ResumeSuggestionEntity();
+            e.setResumeSession(s);
+            e.setCategory(it == null ? null : it.getCategory());
+            e.setPriorityLevel(it == null ? null : it.getPriority());
+            e.setIssueText(it == null ? null : it.getIssue());
+            e.setRecommendation(it == null ? null : it.getRecommendation());
+            e.setSortOrder(i);
+            s.getResumeSuggestions().add(e);
+        }
+    }
+
+    private void replaceInterviewQuestions(ResumeSessionEntity s, List<InterviewQuestions.Question> questions) {
+        s.getInterviewQuestions().clear();
+        if (questions == null) return;
+        for (int i = 0; i < questions.size(); i++) {
+            InterviewQuestions.Question it = questions.get(i);
+            InterviewQuestionEntity e = new InterviewQuestionEntity();
+            e.setResumeSession(s);
+            e.setQuestionText(it == null ? null : it.getQuestion());
+            e.setQuestionType(it == null ? null : it.getType());
+            e.setCategory(it == null ? null : it.getCategory());
+            e.setSortOrder(i);
+            s.getInterviewQuestions().add(e);
+        }
+    }
+
+    private void replaceEvalCategory(ResumeSessionEntity s, List<InterviewEvaluation.CategoryScore> list) {
+        s.getEvaluationCategoryScores().clear();
+        if (list == null) return;
+        for (int i = 0; i < list.size(); i++) {
+            InterviewEvaluation.CategoryScore it = list.get(i);
+            EvaluationCategoryScoreEntity e = new EvaluationCategoryScoreEntity();
+            e.setResumeSession(s);
+            e.setCategory(it == null ? null : it.getCategory());
+            e.setScore(it == null ? null : it.getScore());
+            e.setQuestionCount(it == null ? null : it.getQuestionCount());
+            e.setSortOrder(i);
+            s.getEvaluationCategoryScores().add(e);
+        }
+    }
+
+    private void replaceEvalDetail(ResumeSessionEntity s, List<InterviewEvaluation.QuestionDetail> list) {
+        s.getEvaluationQuestionDetails().clear();
+        if (list == null) return;
+        for (InterviewEvaluation.QuestionDetail it : list) {
+            EvaluationQuestionDetailEntity e = new EvaluationQuestionDetailEntity();
+            e.setResumeSession(s);
+            e.setQuestionIndex(it == null ? null : it.getQuestionIndex());
+            e.setQuestionText(it == null ? null : it.getQuestion());
+            e.setCategory(it == null ? null : it.getCategory());
+            e.setUserAnswer(it == null ? null : it.getUserAnswer());
+            e.setScore(it == null ? null : it.getScore());
+            e.setFeedback(it == null ? null : it.getFeedback());
+            s.getEvaluationQuestionDetails().add(e);
+        }
+    }
+
+    private void replaceEvalStrength(ResumeSessionEntity s, List<String> list) {
+        s.getEvaluationStrengths().clear();
+        if (list == null) return;
+        for (int i = 0; i < list.size(); i++) {
+            EvaluationStrengthEntity e = new EvaluationStrengthEntity();
+            e.setResumeSession(s);
+            e.setStrengthText(list.get(i));
+            e.setSortOrder(i);
+            s.getEvaluationStrengths().add(e);
+        }
+    }
+
+    private void replaceEvalImprovement(ResumeSessionEntity s, List<String> list) {
+        s.getEvaluationImprovements().clear();
+        if (list == null) return;
+        for (int i = 0; i < list.size(); i++) {
+            EvaluationImprovementEntity e = new EvaluationImprovementEntity();
+            e.setResumeSession(s);
+            e.setImprovementText(list.get(i));
+            e.setSortOrder(i);
+            s.getEvaluationImprovements().add(e);
+        }
+    }
+
+    private void replaceEvalReference(ResumeSessionEntity s, List<InterviewEvaluation.ReferenceAnswer> list) {
+        s.getEvaluationReferenceAnswers().clear();
+        if (list == null) return;
+        for (int i = 0; i < list.size(); i++) {
+            InterviewEvaluation.ReferenceAnswer it = list.get(i);
+            EvaluationReferenceAnswerEntity e = new EvaluationReferenceAnswerEntity();
+            e.setResumeSession(s);
+            e.setQuestionIndex(it == null ? null : it.getQuestionIndex());
+            e.setQuestionText(it == null ? null : it.getQuestion());
+            e.setReferenceAnswer(it == null ? null : it.getReferenceAnswer());
+            e.setSortOrder(i);
+            List<EvaluationReferenceKeyPointEntity> points = new ArrayList<>();
+            List<String> keys = it == null ? List.of() : Optional.ofNullable(it.getKeyPoints()).orElse(List.of());
+            for (int j = 0; j < keys.size(); j++) {
+                EvaluationReferenceKeyPointEntity p = new EvaluationReferenceKeyPointEntity();
+                p.setReferenceAnswer(e);
+                p.setKeyPoint(keys.get(j));
+                p.setSortOrder(j);
+                points.add(p);
+            }
+            e.setKeyPoints(points);
+            s.getEvaluationReferenceAnswers().add(e);
+        }
+    }
+
+    private ResumeData toResumeData(ResumeSessionEntity s) {
+        ResumeScoreResult score = ResumeScoreResult.builder()
+                .overallScore(s.getResumeOverallScore())
+                .scoreDetail(new ResumeScoreResult.ScoreDetail(
+                        s.getScoreProject(), s.getScoreSkillMatch(), s.getScoreContent(), s.getScoreStructure(), s.getScoreExpression()))
+                .summary(s.getResumeSummary())
+                .strengths(Optional.ofNullable(s.getResumeStrengths()).orElse(List.of()).stream()
+                        .sorted(Comparator.comparing(ResumeStrengthEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
+                        .map(ResumeStrengthEntity::getStrengthText).collect(Collectors.toList()))
+                .suggestions(Optional.ofNullable(s.getResumeSuggestions()).orElse(List.of()).stream()
+                        .sorted(Comparator.comparing(ResumeSuggestionEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
+                        .map(it -> new ResumeScoreResult.Suggestion(it.getCategory(), it.getPriorityLevel(), it.getIssueText(), it.getRecommendation()))
+                        .collect(Collectors.toList()))
+                .build();
+
+        InterviewQuestions questions = null;
+        if (!Optional.ofNullable(s.getInterviewQuestions()).orElse(List.of()).isEmpty()) {
+            questions = InterviewQuestions.builder()
+                    .questions(s.getInterviewQuestions().stream()
+                            .sorted(Comparator.comparing(InterviewQuestionEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
+                            .map(it -> new InterviewQuestions.Question(it.getQuestionText(), it.getQuestionType(), it.getCategory()))
+                            .collect(Collectors.toList()))
+                    .build();
         }
 
-        Integer evaluationScore = resumeData.getEvaluation() == null
-                ? null
-                : resumeData.getEvaluation().getOverallScore();
-        Integer resumeScore = resumeData.getScoreResult() == null
-                ? null
-                : resumeData.getScoreResult().getOverallScore();
+        InterviewEvaluation eval = null;
+        if (s.getEvaluationOverallScore() != null || !Optional.ofNullable(s.getEvaluationQuestionDetails()).orElse(List.of()).isEmpty()) {
+            eval = InterviewEvaluation.builder()
+                    .sessionId(s.getEvaluationSessionId())
+                    .totalQuestions(s.getEvaluationTotalQuestions())
+                    .overallScore(s.getEvaluationOverallScore())
+                    .overallFeedback(s.getEvaluationOverallFeedback())
+                    .categoryScores(Optional.ofNullable(s.getEvaluationCategoryScores()).orElse(List.of()).stream()
+                            .sorted(Comparator.comparing(EvaluationCategoryScoreEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
+                            .map(it -> new InterviewEvaluation.CategoryScore(it.getCategory(), it.getScore(), it.getQuestionCount()))
+                            .collect(Collectors.toList()))
+                    .questionDetails(Optional.ofNullable(s.getEvaluationQuestionDetails()).orElse(List.of()).stream()
+                            .sorted(Comparator.comparing(EvaluationQuestionDetailEntity::getQuestionIndex, Comparator.nullsLast(Integer::compareTo)))
+                            .map(it -> new InterviewEvaluation.QuestionDetail(it.getQuestionIndex(), it.getQuestionText(), it.getCategory(), it.getUserAnswer(), it.getScore(), it.getFeedback()))
+                            .collect(Collectors.toList()))
+                    .strengths(Optional.ofNullable(s.getEvaluationStrengths()).orElse(List.of()).stream()
+                            .sorted(Comparator.comparing(EvaluationStrengthEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
+                            .map(EvaluationStrengthEntity::getStrengthText).collect(Collectors.toList()))
+                    .improvements(Optional.ofNullable(s.getEvaluationImprovements()).orElse(List.of()).stream()
+                            .sorted(Comparator.comparing(EvaluationImprovementEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
+                            .map(EvaluationImprovementEntity::getImprovementText).collect(Collectors.toList()))
+                    .referenceAnswers(Optional.ofNullable(s.getEvaluationReferenceAnswers()).orElse(List.of()).stream()
+                            .sorted(Comparator.comparing(EvaluationReferenceAnswerEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
+                            .map(it -> new InterviewEvaluation.ReferenceAnswer(
+                                    it.getQuestionIndex(), it.getQuestionText(), it.getReferenceAnswer(),
+                                    Optional.ofNullable(it.getKeyPoints()).orElse(List.of()).stream()
+                                            .sorted(Comparator.comparing(EvaluationReferenceKeyPointEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
+                                            .map(EvaluationReferenceKeyPointEntity::getKeyPoint).collect(Collectors.toList())))
+                            .collect(Collectors.toList()))
+                    .build();
+        }
 
+        return ResumeData.builder()
+                .resumeId(s.getResumeId())
+                .resumeText(s.getResumeText())
+                .scoreResult(score)
+                .questions(questions)
+                .evaluation(eval)
+                .status(s.getStatus() == null ? STATUS_ANALYZED : s.getStatus().name())
+                .createdAt(s.getCreatedAt())
+                .updatedAt(s.getUpdatedAt())
+                .build();
+    }
+
+    private ResumeHistoryItem toHistoryItem(ResumeData d) {
+        int questionCount = d.getQuestions() == null || d.getQuestions().getQuestions() == null ? 0 : d.getQuestions().getQuestions().size();
+        Integer evalScore = d.getEvaluation() == null ? null : d.getEvaluation().getOverallScore();
+        Integer resumeScore = d.getScoreResult() == null ? null : d.getScoreResult().getOverallScore();
         return ResumeHistoryItem.builder()
-                .resumeId(resumeData.getResumeId())
-                .status(StringUtils.defaultIfBlank(resumeData.getStatus(), STATUS_ANALYZED))
-                .resumeScore(resumeScore)
-                .evaluationScore(evaluationScore)
-                .questionCount(questionCount)
-                .createdAt(resumeData.getCreatedAt())
-                .updatedAt(resumeData.getUpdatedAt())
+                .resumeId(d.getResumeId()).status(StringUtils.defaultIfBlank(d.getStatus(), STATUS_ANALYZED))
+                .resumeScore(resumeScore).evaluationScore(evalScore).questionCount(questionCount)
+                .createdAt(d.getCreatedAt()).updatedAt(d.getUpdatedAt()).build();
+    }
+
+    private ResumeHistoryItem toHistoryItem(ResumeHistoryViewEntity v) {
+        return ResumeHistoryItem.builder()
+                .resumeId(v.getResumeId())
+                .status(v.getStatus() == null ? STATUS_ANALYZED : v.getStatus().name())
+                .resumeScore(v.getResumeOverallScore())
+                .evaluationScore(v.getEvaluationOverallScore())
+                .questionCount(v.getQuestionCount() == null ? 0 : v.getQuestionCount().intValue())
+                .createdAt(v.getCreatedAt())
+                .updatedAt(v.getUpdatedAt())
                 .build();
     }
 
     private ResumeScoreResult parseResumeScoreResult(String json) throws JsonProcessingException {
-        // 清理响应文本
         json = cleanJsonResponse(json);
-        
         try {
             JsonNode rootNode = objectMapper.readTree(json);
-            
             Integer overallScore = rootNode.has("overallScore") ? rootNode.get("overallScore").asInt() : 0;
             String summary = rootNode.has("summary") ? rootNode.get("summary").asText() : "";
-            
             ResumeScoreResult.ScoreDetail scoreDetail = new ResumeScoreResult.ScoreDetail();
             if (rootNode.has("scoreDetail")) {
                 JsonNode detailNode = rootNode.get("scoreDetail");
@@ -253,14 +501,10 @@ public class MockInterviewService {
                 scoreDetail.setStructureScore(detailNode.has("structureScore") ? detailNode.get("structureScore").asInt() : 0);
                 scoreDetail.setExpressionScore(detailNode.has("expressionScore") ? detailNode.get("expressionScore").asInt() : 0);
             }
-            
             List<String> strengths = new ArrayList<>();
             if (rootNode.has("strengths") && rootNode.get("strengths").isArray()) {
-                for (JsonNode item : rootNode.get("strengths")) {
-                    strengths.add(item.asText());
-                }
+                for (JsonNode item : rootNode.get("strengths")) strengths.add(item.asText());
             }
-            
             List<ResumeScoreResult.Suggestion> suggestions = new ArrayList<>();
             if (rootNode.has("suggestions") && rootNode.get("suggestions").isArray()) {
                 for (JsonNode item : rootNode.get("suggestions")) {
@@ -272,27 +516,20 @@ public class MockInterviewService {
                     suggestions.add(suggestion);
                 }
             }
-            
             return ResumeScoreResult.builder()
-                    .overallScore(overallScore)
-                    .scoreDetail(scoreDetail)
-                    .summary(summary)
-                    .strengths(strengths)
-                    .suggestions(suggestions)
-                    .build();
+                    .overallScore(overallScore).scoreDetail(scoreDetail).summary(summary)
+                    .strengths(strengths).suggestions(suggestions).build();
         } catch (Exception e) {
             logger.error("解析简历评分结果失败", e);
-            throw new RuntimeException("解析失败：" + e.getMessage(), e);
+            throw new RuntimeException("解析失败: " + e.getMessage(), e);
         }
     }
 
     private InterviewQuestions parseInterviewQuestions(String json) throws JsonProcessingException {
         json = cleanJsonResponse(json);
-        
         try {
             JsonNode rootNode = objectMapper.readTree(json);
             List<InterviewQuestions.Question> questions = new ArrayList<>();
-            
             if (rootNode.has("questions") && rootNode.get("questions").isArray()) {
                 for (JsonNode item : rootNode.get("questions")) {
                     InterviewQuestions.Question question = new InterviewQuestions.Question();
@@ -302,29 +539,22 @@ public class MockInterviewService {
                     questions.add(question);
                 }
             }
-            
-            return InterviewQuestions.builder()
-                    .questions(questions)
-                    .build();
+            return InterviewQuestions.builder().questions(questions).build();
         } catch (Exception e) {
             logger.error("解析面试问题失败", e);
-            throw new RuntimeException("解析失败：" + e.getMessage(), e);
+            throw new RuntimeException("解析失败: " + e.getMessage(), e);
         }
     }
 
     private InterviewEvaluation parseInterviewEvaluation(String json) throws JsonProcessingException {
         json = cleanJsonResponse(json);
-        
         try {
             JsonNode rootNode = objectMapper.readTree(json);
-            
             InterviewEvaluation.InterviewEvaluationBuilder builder = InterviewEvaluation.builder();
-            
             builder.sessionId(rootNode.has("sessionId") ? rootNode.get("sessionId").asText() : UUID.randomUUID().toString());
             builder.totalQuestions(rootNode.has("totalQuestions") ? rootNode.get("totalQuestions").asInt() : 0);
             builder.overallScore(rootNode.has("overallScore") ? rootNode.get("overallScore").asInt() : 0);
             builder.overallFeedback(rootNode.has("overallFeedback") ? rootNode.get("overallFeedback").asText() : "");
-            
             List<InterviewEvaluation.CategoryScore> categoryScores = new ArrayList<>();
             if (rootNode.has("categoryScores") && rootNode.get("categoryScores").isArray()) {
                 for (JsonNode item : rootNode.get("categoryScores")) {
@@ -336,7 +566,6 @@ public class MockInterviewService {
                 }
             }
             builder.categoryScores(categoryScores);
-            
             List<InterviewEvaluation.QuestionDetail> questionDetails = new ArrayList<>();
             if (rootNode.has("questionDetails") && rootNode.get("questionDetails").isArray()) {
                 for (JsonNode item : rootNode.get("questionDetails")) {
@@ -351,23 +580,16 @@ public class MockInterviewService {
                 }
             }
             builder.questionDetails(questionDetails);
-            
             List<String> strengths = new ArrayList<>();
             if (rootNode.has("strengths") && rootNode.get("strengths").isArray()) {
-                for (JsonNode item : rootNode.get("strengths")) {
-                    strengths.add(item.asText());
-                }
+                for (JsonNode item : rootNode.get("strengths")) strengths.add(item.asText());
             }
             builder.strengths(strengths);
-            
             List<String> improvements = new ArrayList<>();
             if (rootNode.has("improvements") && rootNode.get("improvements").isArray()) {
-                for (JsonNode item : rootNode.get("improvements")) {
-                    improvements.add(item.asText());
-                }
+                for (JsonNode item : rootNode.get("improvements")) improvements.add(item.asText());
             }
             builder.improvements(improvements);
-            
             List<InterviewEvaluation.ReferenceAnswer> referenceAnswers = new ArrayList<>();
             if (rootNode.has("referenceAnswers") && rootNode.get("referenceAnswers").isArray()) {
                 for (JsonNode item : rootNode.get("referenceAnswers")) {
@@ -375,41 +597,26 @@ public class MockInterviewService {
                     answer.setQuestionIndex(item.has("questionIndex") ? item.get("questionIndex").asInt() : 0);
                     answer.setQuestion(item.has("question") ? item.get("question").asText() : "");
                     answer.setReferenceAnswer(item.has("referenceAnswer") ? item.get("referenceAnswer").asText() : "");
-                    
                     List<String> keyPoints = new ArrayList<>();
                     if (item.has("keyPoints") && item.get("keyPoints").isArray()) {
-                        for (JsonNode point : item.get("keyPoints")) {
-                            keyPoints.add(point.asText());
-                        }
+                        for (JsonNode point : item.get("keyPoints")) keyPoints.add(point.asText());
                     }
                     answer.setKeyPoints(keyPoints);
                     referenceAnswers.add(answer);
                 }
             }
             builder.referenceAnswers(referenceAnswers);
-            
             return builder.build();
         } catch (Exception e) {
             logger.error("解析面试评估失败", e);
-            throw new RuntimeException("解析失败：" + e.getMessage(), e);
+            throw new RuntimeException("解析失败: " + e.getMessage(), e);
         }
     }
 
-    /**
-     * 清理 JSON 响应，移除可能的 Markdown 标记
-     */
     private String cleanJsonResponse(String json) {
-        // 移除 markdown 代码块标记
-        if (json.startsWith("```json")) {
-            json = json.substring(7);
-        } else if (json.startsWith("```")) {
-            json = json.substring(3);
-        }
-        
-        if (json.endsWith("```")) {
-            json = json.substring(0, json.length() - 3);
-        }
-        
+        if (json.startsWith("```json")) json = json.substring(7);
+        else if (json.startsWith("```")) json = json.substring(3);
+        if (json.endsWith("```")) json = json.substring(0, json.length() - 3);
         return json.trim();
     }
 }

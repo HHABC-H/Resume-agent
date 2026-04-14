@@ -1,6 +1,18 @@
 spring:
   application:
     name: skills-agent-example
+  datasource:
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/resume_agent?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: true
   ai:
     dashscope:
       api-key: ${AI_DASHSCOPE_API_KEY}
@@ -16,3 +28,4 @@ logging:
     level:
       org.springframework.ai: DEBUG
       com.alibaba.cloud.ai: DEBUG
+      org.hibernate.SQL: INFO

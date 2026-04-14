@@ -30,6 +30,7 @@ import java.util.List;
 @Table(
         name = "resume_session",
         indexes = {
+                @Index(name = "idx_resume_session_user_id", columnList = "user_id"),
                 @Index(name = "idx_resume_session_status", columnList = "status"),
                 @Index(name = "idx_resume_session_updated_at", columnList = "updated_at")
         }
@@ -39,6 +40,9 @@ public class ResumeSessionEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "user_id")
+    private Long userId;
 
     @Column(name = "resume_id", nullable = false, unique = true, length = 64)
     private String resumeId;
