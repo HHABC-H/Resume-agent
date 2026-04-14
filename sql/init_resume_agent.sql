@@ -1,4 +1,4 @@
--- Resume-agent 初始化数据库脚本
+-- Resume-agent 初始化数据库脚本（兼容全新初始化 + 增量迁移）
 -- 适用数据库：MySQL 8+
 
 CREATE DATABASE IF NOT EXISTS `resume_agent`
@@ -7,9 +7,49 @@ CREATE DATABASE IF NOT EXISTS `resume_agent`
 
 USE `resume_agent`;
 
--- 1) 简历会话主表（对应 ResumeData 主体）
+-- 1) 用户表
+CREATE TABLE IF NOT EXISTS `user` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `username` VARCHAR(64) NOT NULL COMMENT '登录用户名',
+  `email` VARCHAR(255) NULL COMMENT '邮箱',
+  `password_hash` VARCHAR(255) NOT NULL COMMENT '密码哈希',
+  `display_name` VARCHAR(100) NULL COMMENT '展示名称',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '1=正常,0=禁用',
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_username` (`username`),
+  UNIQUE KEY `uk_user_email` (`email`),
+  KEY `idx_user_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 2) 登录会话表（可选）
+CREATE TABLE IF NOT EXISTS `user_session` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `session_token` VARCHAR(128) NOT NULL COMMENT '会话令牌（建议存哈希）',
+  `device_info` VARCHAR(255) NULL,
+  `ip_address` VARCHAR(64) NULL,
+  `expires_at` DATETIME(3) NOT NULL,
+  `revoked_at` DATETIME(3) NULL,
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_session_token` (`session_token`),
+  KEY `idx_user_session_user_id` (`user_id`),
+  KEY `idx_user_session_expires_at` (`expires_at`),
+
+  CONSTRAINT `fk_user_session_user`
+    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 3) 简历会话主表（对应 ResumeData 主体）
 CREATE TABLE IF NOT EXISTS `resume_session` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT UNSIGNED NULL COMMENT '所属用户ID（增量迁移期允许为空）',
   `resume_id` VARCHAR(64) NOT NULL COMMENT '业务简历ID(UUID)',
   `resume_text` MEDIUMTEXT NOT NULL COMMENT '简历原文',
   `status` ENUM('ANALYZED', 'QUESTIONS_READY', 'EVALUATED') NOT NULL DEFAULT 'ANALYZED' COMMENT '流程状态',
@@ -32,11 +72,43 @@ CREATE TABLE IF NOT EXISTS `resume_session` (
 
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_resume_session_resume_id` (`resume_id`),
+  KEY `idx_resume_session_user_id` (`user_id`),
   KEY `idx_resume_session_status` (`status`),
-  KEY `idx_resume_session_updated_at` (`updated_at`)
+  KEY `idx_resume_session_updated_at` (`updated_at`),
+
+  CONSTRAINT `fk_resume_session_user`
+    FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
+    ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 2) 简历优势列表
+-- 3.1) 兼容老库：补 user_id + 索引（幂等）
+ALTER TABLE `resume_session`
+  ADD COLUMN IF NOT EXISTS `user_id` BIGINT UNSIGNED NULL COMMENT '所属用户ID（增量迁移期允许为空）' AFTER `id`;
+
+ALTER TABLE `resume_session`
+  ADD INDEX IF NOT EXISTS `idx_resume_session_user_id` (`user_id`);
+
+-- 3.2) 兼容老库：补外键（MySQL 无 ADD CONSTRAINT IF NOT EXISTS，使用动态 SQL）
+SET @fk_exists := (
+  SELECT COUNT(1)
+  FROM information_schema.TABLE_CONSTRAINTS
+  WHERE CONSTRAINT_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'resume_session'
+    AND CONSTRAINT_NAME = 'fk_resume_session_user'
+    AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+);
+
+SET @fk_sql := IF(
+  @fk_exists = 0,
+  'ALTER TABLE `resume_session` ADD CONSTRAINT `fk_resume_session_user` FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE RESTRICT',
+  'SELECT "fk_resume_session_user already exists"'
+);
+
+PREPARE stmt_fk_resume_session_user FROM @fk_sql;
+EXECUTE stmt_fk_resume_session_user;
+DEALLOCATE PREPARE stmt_fk_resume_session_user;
+
+-- 4) 简历优势列表
 CREATE TABLE IF NOT EXISTS `resume_strength` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `resume_session_id` BIGINT UNSIGNED NOT NULL,
@@ -49,7 +121,7 @@ CREATE TABLE IF NOT EXISTS `resume_strength` (
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 3) 简历改进建议
+-- 5) 简历改进建议
 CREATE TABLE IF NOT EXISTS `resume_suggestion` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `resume_session_id` BIGINT UNSIGNED NOT NULL,
@@ -65,7 +137,7 @@ CREATE TABLE IF NOT EXISTS `resume_suggestion` (
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 4) 面试问题
+-- 6) 面试问题
 CREATE TABLE IF NOT EXISTS `interview_question` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `resume_session_id` BIGINT UNSIGNED NOT NULL,
@@ -81,7 +153,7 @@ CREATE TABLE IF NOT EXISTS `interview_question` (
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 5) 评估分类得分
+-- 7) 评估分类得分
 CREATE TABLE IF NOT EXISTS `evaluation_category_score` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `resume_session_id` BIGINT UNSIGNED NOT NULL,
@@ -96,7 +168,7 @@ CREATE TABLE IF NOT EXISTS `evaluation_category_score` (
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 6) 逐题评估
+-- 8) 逐题评估
 CREATE TABLE IF NOT EXISTS `evaluation_question_detail` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `resume_session_id` BIGINT UNSIGNED NOT NULL,
@@ -114,7 +186,7 @@ CREATE TABLE IF NOT EXISTS `evaluation_question_detail` (
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 7) 评估优势
+-- 9) 评估优势
 CREATE TABLE IF NOT EXISTS `evaluation_strength` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `resume_session_id` BIGINT UNSIGNED NOT NULL,
@@ -127,7 +199,7 @@ CREATE TABLE IF NOT EXISTS `evaluation_strength` (
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 8) 评估改进建议
+-- 10) 评估改进建议
 CREATE TABLE IF NOT EXISTS `evaluation_improvement` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `resume_session_id` BIGINT UNSIGNED NOT NULL,
@@ -140,7 +212,7 @@ CREATE TABLE IF NOT EXISTS `evaluation_improvement` (
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 9) 参考答案
+-- 11) 参考答案
 CREATE TABLE IF NOT EXISTS `evaluation_reference_answer` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `resume_session_id` BIGINT UNSIGNED NOT NULL,
@@ -156,7 +228,7 @@ CREATE TABLE IF NOT EXISTS `evaluation_reference_answer` (
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 10) 参考答案要点
+-- 12) 参考答案要点
 CREATE TABLE IF NOT EXISTS `evaluation_reference_key_point` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `reference_answer_id` BIGINT UNSIGNED NOT NULL,
@@ -169,9 +241,13 @@ CREATE TABLE IF NOT EXISTS `evaluation_reference_key_point` (
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 11) 历史记录查询视图（首页/历史页可直接查询）
+-- 13) 历史记录查询视图（按用户隔离）
+-- 使用方式：SELECT * FROM v_resume_history WHERE user_id = ? ORDER BY updated_at DESC;
 CREATE OR REPLACE VIEW `v_resume_history` AS
 SELECT
+  rs.`user_id`,
+  u.`username`,
+  u.`display_name`,
   rs.`resume_id`,
   rs.`status`,
   rs.`resume_overall_score`,
@@ -180,4 +256,5 @@ SELECT
   rs.`created_at`,
   rs.`updated_at`
 FROM `resume_session` rs
+LEFT JOIN `user` u ON u.`id` = rs.`user_id`
 ORDER BY rs.`updated_at` DESC;
