@@ -12,16 +12,19 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.reader.tika.TikaDocumentReader;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @Controller
 public class MockInterviewController {
@@ -220,6 +223,39 @@ public class MockInterviewController {
         }
     }
 
+    @GetMapping(value = "/api/interview/{resumeId}/questions/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @ResponseBody
+    public SseEmitter generateQuestionsStream(@PathVariable String resumeId, HttpServletRequest request) {
+        SseEmitter emitter = new SseEmitter(180000L);
+        Long userId = currentUserId(request);
+        ResumeData resumeData = interviewService.getResumeById(resumeId, userId);
+        if (resumeData == null) {
+            sendEvent(emitter, "error", Map.of("message", "会话不存在或无权限访问"));
+            emitter.complete();
+            return emitter;
+        }
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                sendEvent(emitter, "progress", Map.of("stage", "start", "message", "正在生成面试问题..."));
+                InterviewQuestions questions = interviewService.generateInterviewQuestions(
+                        resumeData.getResumeText(),
+                        resumeData.getPositionType()
+                );
+                sendEvent(emitter, "progress", Map.of("stage", "saving", "message", "正在保存问题..."));
+                interviewService.saveQuestions(resumeId, questions);
+                sendEvent(emitter, "result", questions);
+                sendEvent(emitter, "done", Map.of("message", "问题生成完成"));
+                emitter.complete();
+            } catch (Exception e) {
+                logger.error("流式生成问题失败", e);
+                sendEvent(emitter, "error", Map.of("message", "生成问题失败：" + e.getMessage()));
+                emitter.completeWithError(e);
+            }
+        });
+        return emitter;
+    }
+
     /**
      * 提交答案并评估
      */
@@ -249,6 +285,44 @@ public class MockInterviewController {
             logger.error("评估答案失败", e);
             return ResponseEntity.internalServerError().body(Map.of("error", "评估失败：" + e.getMessage()));
         }
+    }
+
+    @PostMapping(value = "/api/interview/{resumeId}/submit/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @ResponseBody
+    public SseEmitter submitAnswersStream(
+            @PathVariable String resumeId,
+            @RequestBody Map<Integer, String> answers,
+            HttpServletRequest request) {
+        SseEmitter emitter = new SseEmitter(180000L);
+        Long userId = currentUserId(request);
+        ResumeData resumeData = interviewService.getResumeById(resumeId, userId);
+        if (resumeData == null) {
+            sendEvent(emitter, "error", Map.of("message", "会话不存在或无权限访问"));
+            emitter.complete();
+            return emitter;
+        }
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                sendEvent(emitter, "progress", Map.of("stage", "start", "message", "正在评估回答..."));
+                InterviewEvaluation evaluation = interviewService.evaluateAnswers(
+                        resumeData.getResumeText(),
+                        resumeData.getPositionType(),
+                        resumeData.getQuestions(),
+                        answers
+                );
+                sendEvent(emitter, "progress", Map.of("stage", "saving", "message", "正在保存评估结果..."));
+                interviewService.saveEvaluation(resumeId, evaluation);
+                sendEvent(emitter, "result", evaluation);
+                sendEvent(emitter, "done", Map.of("message", "评估完成"));
+                emitter.complete();
+            } catch (Exception e) {
+                logger.error("流式评估答案失败", e);
+                sendEvent(emitter, "error", Map.of("message", "评估失败：" + e.getMessage()));
+                emitter.completeWithError(e);
+            }
+        });
+        return emitter;
     }
 
     /**
@@ -296,5 +370,12 @@ public class MockInterviewController {
             }
         }
         return null;
+    }
+
+    private void sendEvent(SseEmitter emitter, String event, Object data) {
+        try {
+            emitter.send(SseEmitter.event().name(event).data(data));
+        } catch (IOException ignored) {
+        }
     }
 }

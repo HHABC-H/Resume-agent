@@ -34,6 +34,8 @@
         </ul>
     </section>
 
+    <section id="streamStatus" class="panel muted" style="margin-top: 16px;">正在准备流式会话...</section>
+
     <div id="questionsContainer" style="margin-top: 16px;">
         <section class="panel muted">正在生成面试问题...</section>
     </div>
@@ -49,9 +51,69 @@
 AuthClient.initPage({ requireAuth: true });
 
 const resumeId = window.location.pathname.split('/').pop();
+const streamStatus = document.getElementById('streamStatus');
 let questions = [];
 
+function updateStatus(message, isError = false) {
+    streamStatus.className = isError ? 'panel message error' : 'panel muted';
+    streamStatus.textContent = message;
+}
+
+function safeJson(raw) {
+    try {
+        return JSON.parse(raw);
+    } catch (e) {
+        return null;
+    }
+}
+
 async function loadQuestions() {
+    try {
+        await loadQuestionsByStream();
+    } catch (error) {
+        updateStatus('流式生成失败，切换到普通模式重试...', true);
+        await loadQuestionsFallback(error);
+    }
+}
+
+async function loadQuestionsByStream() {
+    updateStatus('正在连接流式问题生成服务...');
+    await new Promise((resolve, reject) => {
+        let gotResult = false;
+        const eventSource = new EventSource(`/api/interview/${resumeId}/questions/stream`);
+
+        eventSource.addEventListener('progress', (event) => {
+            const data = safeJson(event.data);
+            updateStatus(data?.message || '正在生成问题...');
+        });
+
+        eventSource.addEventListener('result', (event) => {
+            const data = safeJson(event.data) || {};
+            questions = data.questions || [];
+            gotResult = true;
+            renderQuestions();
+            document.getElementById('buttonContainer').style.display = 'flex';
+        });
+
+        eventSource.addEventListener('done', (event) => {
+            const data = safeJson(event.data);
+            updateStatus(data?.message || '问题生成完成');
+            eventSource.close();
+            resolve();
+        });
+
+        eventSource.addEventListener('error', () => {
+            eventSource.close();
+            if (!gotResult) {
+                reject(new Error('流式生成问题失败'));
+            } else {
+                resolve();
+            }
+        });
+    });
+}
+
+async function loadQuestionsFallback(originalError) {
     try {
         const response = await AuthClient.authFetch(`/api/interview/${resumeId}/questions`, { method: 'POST' });
         if (!response.ok) {
@@ -62,10 +124,11 @@ async function loadQuestions() {
         questions = data.questions || [];
         renderQuestions();
         document.getElementById('buttonContainer').style.display = 'flex';
+        updateStatus('问题生成完成（普通模式）');
     } catch (error) {
         document.getElementById('questionsContainer').innerHTML = `
             <section class="panel">
-                <p class="message error">${error.message}</p>
+                <p class="message error">${(originalError?.message || '') + ' ' + (error.message || '')}</p>
                 <button class="btn btn-warning" onclick="location.reload()">重试</button>
             </section>
         `;
@@ -110,6 +173,60 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+async function streamPostSse(url, payload, handlers) {
+    const response = await AuthClient.authFetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+        throw new Error('流式请求失败');
+    }
+    if (!response.body) {
+        throw new Error('浏览器不支持流式响应');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+
+    const parseChunk = (chunk) => {
+        const clean = chunk.replace(/\r/g, '');
+        const lines = clean.split('\n');
+        let eventName = 'message';
+        let dataLines = [];
+        for (const line of lines) {
+            if (line.startsWith('event:')) {
+                eventName = line.substring(6).trim();
+            } else if (line.startsWith('data:')) {
+                dataLines.push(line.substring(5).trim());
+            }
+        }
+        const dataText = dataLines.join('\n');
+        const data = safeJson(dataText) || { message: dataText };
+        if (eventName === 'progress' && handlers.onProgress) handlers.onProgress(data);
+        if (eventName === 'result' && handlers.onResult) handlers.onResult(data);
+        if (eventName === 'error' && handlers.onError) handlers.onError(data);
+        if (eventName === 'done' && handlers.onDone) handlers.onDone(data);
+    };
+
+    while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+            break;
+        }
+        buffer += decoder.decode(value, { stream: true });
+        let index;
+        while ((index = buffer.indexOf('\n\n')) >= 0) {
+            const eventBlock = buffer.slice(0, index).trim();
+            buffer = buffer.slice(index + 2);
+            if (eventBlock) {
+                parseChunk(eventBlock);
+            }
+        }
+    }
+}
+
 async function submitAnswers() {
     const answers = {};
     let hasBlank = false;
@@ -129,21 +246,32 @@ async function submitAnswers() {
     const submitButton = document.querySelector('#buttonContainer button');
     submitButton.disabled = true;
     submitButton.textContent = '提交中...';
+    updateStatus('正在提交答案...');
 
     try {
-        const response = await AuthClient.authFetch(`/api/interview/${resumeId}/submit`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(answers)
+        await streamPostSse(`/api/interview/${resumeId}/submit/stream`, answers, {
+            onProgress: (data) => updateStatus(data?.message || '正在评估回答...'),
+            onResult: () => updateStatus('评估已生成，正在跳转结果页...'),
+            onError: (data) => { throw new Error(data?.message || '评估失败'); },
+            onDone: () => updateStatus('评估完成，正在跳转...')
         });
-
-        if (!response.ok) {
-            throw new Error('提交失败');
-        }
-
         window.location.href = `/result/${resumeId}`;
     } catch (error) {
-        alert(error.message || '提交失败，请重试');
+        updateStatus(error.message || '流式评估失败，切换普通提交...', true);
+        try {
+            const response = await AuthClient.authFetch(`/api/interview/${resumeId}/submit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(answers)
+            });
+            if (!response.ok) {
+                throw new Error('提交失败');
+            }
+            window.location.href = `/result/${resumeId}`;
+        } catch (fallbackError) {
+            alert(fallbackError.message || '提交失败，请重试');
+        }
+    } finally {
         submitButton.disabled = false;
         submitButton.textContent = '提交答案';
     }
