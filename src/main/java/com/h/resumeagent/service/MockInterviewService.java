@@ -36,6 +36,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
@@ -70,6 +71,7 @@ public class MockInterviewService {
     private final DashScopeChatModel chatModel;
     private final ObjectMapper objectMapper;
     private final Map<String, ResumeData> resumeStorage = new ConcurrentHashMap<>();
+    private volatile boolean historyViewAvailable = true;
 
     @Autowired(required = false)
     private ResumeSessionRepository resumeSessionRepository;
@@ -309,10 +311,27 @@ public class MockInterviewService {
                     .collect(Collectors.toList());
         }
         PageRequest page = PageRequest.of(0, safeLimit);
-        List<ResumeHistoryViewEntity> rows = userId == null
-                ? resumeHistoryViewRepository.findAllByOrderByUpdatedAtDesc(page)
-                : resumeHistoryViewRepository.findByUserIdOrderByUpdatedAtDesc(userId, page);
-        return rows.stream().map(this::toHistoryItem).collect(Collectors.toList());
+
+        if (historyViewAvailable) {
+            try {
+                List<ResumeHistoryViewEntity> rows = userId == null
+                        ? resumeHistoryViewRepository.findAllByOrderByUpdatedAtDesc(page)
+                        : resumeHistoryViewRepository.findByUserIdOrderByUpdatedAtDesc(userId, page);
+                return rows.stream().map(this::toHistoryItem).collect(Collectors.toList());
+            } catch (RuntimeException ex) {
+                if (isHistoryViewSchemaException(ex)) {
+                    historyViewAvailable = false;
+                    logger.warn("历史视图查询失败，已降级为 resume_session 查询: {}", shortMessage(ex));
+                } else {
+                    throw ex;
+                }
+            }
+        }
+
+        List<ResumeSessionEntity> sessions = userId == null
+                ? resumeSessionRepository.findAllByOrderByUpdatedAtDesc(page)
+                : resumeSessionRepository.findByUserIdOrderByUpdatedAtDesc(userId, page);
+        return sessions.stream().map(this::toHistoryItem).collect(Collectors.toList());
     }
 
     private boolean isPersistenceEnabled() {
@@ -544,6 +563,20 @@ public class MockInterviewService {
                 .questionCount(v.getQuestionCount() == null ? 0 : v.getQuestionCount().intValue())
                 .createdAt(v.getCreatedAt())
                 .updatedAt(v.getUpdatedAt())
+                .build();
+    }
+
+    private ResumeHistoryItem toHistoryItem(ResumeSessionEntity s) {
+        int questionCount = Optional.ofNullable(s.getInterviewQuestions()).orElse(List.of()).size();
+        return ResumeHistoryItem.builder()
+                .resumeId(s.getResumeId())
+                .status(s.getStatus() == null ? STATUS_ANALYZED : s.getStatus().name())
+                .positionType(normalizePositionType(s.getPositionType()))
+                .resumeScore(s.getResumeOverallScore())
+                .evaluationScore(s.getEvaluationOverallScore())
+                .questionCount(questionCount)
+                .createdAt(s.getCreatedAt())
+                .updatedAt(s.getUpdatedAt())
                 .build();
     }
 
@@ -790,5 +823,31 @@ public class MockInterviewService {
             return message;
         }
         return throwable.getClass().getSimpleName();
+    }
+
+    private boolean isHistoryViewSchemaException(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof DataAccessException) {
+                String message = current.getMessage();
+                if (message != null) {
+                    String lower = message.toLowerCase();
+                    if (lower.contains("unknown column")
+                            && lower.contains("position_type")) {
+                        return true;
+                    }
+                }
+            }
+            String message = current.getMessage();
+            if (message != null) {
+                String lower = message.toLowerCase();
+                if (lower.contains("unknown column")
+                        && lower.contains("position_type")) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }
