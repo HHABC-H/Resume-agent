@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -116,11 +117,8 @@ public class MockInterviewController {
                 return ResponseEntity.badRequest().body(Map.of("error", "仅支持 PDF、DOC、DOCX 或 TXT 格式的简历文件"));
             }
 
-            // 读取文件内容
-
-            TikaDocumentReader reader = new TikaDocumentReader(file.getResource());
-            // 读取并返回纯文本
-            String resumeText= reader.read().get(0).getText();
+            // 读取并返回纯文本（对 PDF 字体扫描异常做一次重试）
+            String resumeText = extractResumeText(file, fileName);
 
             // 调用 AI 服务进行评分
             ResumeScoreResult scoreResult = interviewService.scoreResume(resumeText);
@@ -140,6 +138,9 @@ public class MockInterviewController {
         } catch (IOException e) {
             logger.error("上传简历失败", e);
             return ResponseEntity.internalServerError().body(Map.of("error", "上传失败：" + e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            logger.warn("简历解析失败: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             logger.error("评分失败", e);
             return ResponseEntity.internalServerError().body(Map.of("error", "评分失败：" + e.getMessage()));
@@ -455,6 +456,73 @@ public class MockInterviewController {
 
         private EmitterState(SseEmitter emitter) {
             this.emitter = emitter;
+        }
+    }
+
+    private String extractResumeText(MultipartFile file, String fileName) throws IOException {
+        try {
+            return readTextByTika(file);
+        } catch (RuntimeException ex) {
+            if (isPdfFile(fileName) && isPdfFontScanException(ex)) {
+                logger.warn("PDF 解析触发字体扫描异常，准备重试一次: {}", ex.getMessage());
+                sleepQuietly(300L);
+                try {
+                    return readTextByTika(file);
+                } catch (RuntimeException retryEx) {
+                    throw new IllegalArgumentException("PDF 解析失败：检测到系统字体文件异常，请重试或将文件转为 DOCX/TXT 后上传。");
+                }
+            }
+            throw new IllegalArgumentException("文件解析失败：请确认文件未损坏且内容可读取。");
+        }
+    }
+
+    private String readTextByTika(MultipartFile file) {
+        TikaDocumentReader reader = new TikaDocumentReader(file.getResource());
+        List<org.springframework.ai.document.Document> docs = reader.read();
+        if (docs == null || docs.isEmpty() || docs.get(0) == null) {
+            throw new IllegalArgumentException("文件内容为空或无法解析");
+        }
+        String text = docs.get(0).getText();
+        if (text == null || text.trim().isEmpty()) {
+            throw new IllegalArgumentException("文件内容为空或无法解析");
+        }
+        return text;
+    }
+
+    private boolean isPdfFile(String fileName) {
+        return fileName != null && fileName.toLowerCase().endsWith(".pdf");
+    }
+
+    private boolean isPdfFontScanException(Throwable ex) {
+        Throwable current = ex;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null) {
+                String lower = message.toLowerCase();
+                if (lower.contains("eof at")
+                        || lower.contains("fontbox")
+                        || lower.contains("filesystemfontprovider")
+                        || lower.contains("ttf")) {
+                    return true;
+                }
+            }
+            for (StackTraceElement element : current.getStackTrace()) {
+                String className = element.getClassName();
+                if (className.contains("org.apache.fontbox.ttf")
+                        || className.contains("org.apache.pdfbox.pdmodel.font.FileSystemFontProvider")) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private void sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
         }
     }
 }
