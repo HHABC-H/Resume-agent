@@ -3,113 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>模拟面试器 · 登录</title>
+    <title>面试模拟器 · 登录</title>
     <link rel="stylesheet" href="/css/theme.css">
 </head>
 <body>
-<div class="page">
+<div class="page auth-page" id="authApp">
     <header class="topbar">
-        <a class="brand" href="/">徐庶模拟面试器</a>
+        <a class="brand" href="/">面试模拟器</a>
         <nav class="nav">
             <a href="/">首页</a>
             <a href="/login" class="active">登录</a>
+            <a href="/register">注册</a>
         </nav>
     </header>
 
-    <section class="hero">
-        <span class="chip">账号中心</span>
-        <h1>登录后开始面试流程</h1>
-        <p>支持新用户注册。登录成功后会自动跳转到你之前的页面。</p>
-    </section>
-
-    <section class="grid grid-2" style="margin-top: 16px;">
-        <div class="panel">
-            <h2>登录</h2>
-            <div class="form-grid">
-                <input id="loginUsername" type="text" placeholder="用户名">
-                <input id="loginPassword" type="password" placeholder="密码">
-            </div>
-            <div class="form-actions" style="margin-top: 12px;">
-                <button class="btn btn-primary" id="loginBtn" type="button">登录</button>
-            </div>
-            <div id="loginMessage" class="message error" style="display:none;"></div>
+    <section class="auth-layout">
+        <div class="auth-side panel">
+            <span class="chip">账号中心</span>
+            <h1>登录后开始你的面试训练</h1>
+            <p>从简历分析、智能提问到评估报告，全流程都将在你的账号下保存。</p>
+            <ul class="list muted">
+                <li>支持多岗位模式：后端 Java / 前端 / 算法</li>
+                <li>支持历史记录追踪和持续复盘</li>
+                <li>支持流式面试评估反馈</li>
+            </ul>
         </div>
 
-        <div class="panel">
-            <h2>注册</h2>
+        <div class="auth-card panel">
+            <h2>欢迎回来</h2>
+            <p class="muted">请输入账号密码登录。</p>
             <div class="form-grid">
-                <input id="regUsername" type="text" placeholder="用户名（3-64）">
-                <input id="regEmail" type="email" placeholder="邮箱（可选）">
-                <input id="regDisplayName" type="text" placeholder="显示名称（可选）">
-                <input id="regPassword" type="password" placeholder="密码（至少6位）">
+                <input v-model.trim="username" type="text" placeholder="用户名">
+                <input v-model="password" type="password" placeholder="密码">
             </div>
-            <div class="form-actions" style="margin-top: 12px;">
-                <button class="btn btn-secondary" id="registerBtn" type="button">注册账号</button>
+            <div class="form-actions" style="margin-top: 14px;">
+                <button class="btn btn-primary" type="button" :disabled="loading" @click="submitLogin">
+                    {{ loading ? '登录中...' : '登录' }}
+                </button>
+                <a class="btn btn-secondary" href="/register">去注册</a>
             </div>
-            <div id="registerMessage" class="message error" style="display:none;"></div>
+            <div v-if="message" :class="messageType === 'error' ? 'message error' : 'message info'">{{ message }}</div>
         </div>
     </section>
 </div>
 
 <script src="/js/auth-client.js"></script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <script>
 const redirectTarget = new URLSearchParams(window.location.search).get('redirect') || '/upload';
-const loginMessage = document.getElementById('loginMessage');
-const registerMessage = document.getElementById('registerMessage');
+const presetUsername = new URLSearchParams(window.location.search).get('username') || '';
+const { createApp } = Vue;
 
-function showMessage(el, msg, isError = true) {
-    el.style.display = 'block';
-    el.className = isError ? 'message error' : 'message info';
-    el.textContent = msg;
-}
+createApp({
+    data() {
+        return {
+            username: presetUsername,
+            password: '',
+            loading: false,
+            message: '',
+            messageType: 'error'
+        };
+    },
+    methods: {
+        async submitLogin() {
+            this.message = '';
+            if (!this.username || !this.password) {
+                this.message = '请输入用户名和密码';
+                this.messageType = 'error';
+                return;
+            }
+            this.loading = true;
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: this.username, password: this.password })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || '登录失败');
+                }
 
-document.getElementById('loginBtn').addEventListener('click', async () => {
-    loginMessage.style.display = 'none';
-    const username = document.getElementById('loginUsername').value.trim();
-    const password = document.getElementById('loginPassword').value;
-    try {
-        const res = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
-        const data = await res.json();
-        if (!res.ok) {
-            throw new Error(data.error || '登录失败');
+                AuthClient.setToken(data.token, data.expiresAt);
+                localStorage.setItem('resume_agent_username', data.username || '');
+                localStorage.setItem('resume_agent_user_id', String(data.userId || ''));
+                window.location.href = redirectTarget;
+            } catch (e) {
+                this.message = e.message || '登录失败';
+                this.messageType = 'error';
+            } finally {
+                this.loading = false;
+            }
         }
-        AuthClient.setToken(data.token, data.expiresAt);
-        localStorage.setItem('resume_agent_username', data.username || '');
-        localStorage.setItem('resume_agent_user_id', String(data.userId || ''));
-        window.location.href = redirectTarget;
-    } catch (e) {
-        showMessage(loginMessage, e.message || '登录失败');
     }
-});
-
-document.getElementById('registerBtn').addEventListener('click', async () => {
-    registerMessage.style.display = 'none';
-    const payload = {
-        username: document.getElementById('regUsername').value.trim(),
-        email: document.getElementById('regEmail').value.trim() || null,
-        displayName: document.getElementById('regDisplayName').value.trim() || null,
-        password: document.getElementById('regPassword').value
-    };
-    try {
-        const res = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (!res.ok) {
-            throw new Error(data.error || '注册失败');
-        }
-        showMessage(registerMessage, '注册成功，请在左侧登录。', false);
-        document.getElementById('loginUsername').value = payload.username;
-    } catch (e) {
-        showMessage(registerMessage, e.message || '注册失败');
-    }
-});
+}).mount('#authApp');
 </script>
 </body>
 </html>

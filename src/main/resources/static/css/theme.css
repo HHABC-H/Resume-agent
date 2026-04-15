@@ -133,6 +133,50 @@ body {
   box-shadow: var(--shadow-md);
 }
 
+.auth-page {
+  max-width: 1220px;
+}
+
+.auth-layout {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 16px;
+}
+
+.auth-side {
+  min-height: 420px;
+  background: linear-gradient(145deg, rgba(246, 255, 253, 0.96), rgba(232, 250, 245, 0.92));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.auth-side h1 {
+  margin-top: 10px;
+  margin-bottom: 12px;
+  font-size: clamp(30px, 4vw, 44px);
+  line-height: 1.18;
+}
+
+.auth-side p {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.auth-card {
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border: 1px solid rgba(13, 148, 136, 0.18);
+}
+
+.auth-card h2 {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
 .grid {
   display: grid;
   gap: 16px;
@@ -393,6 +437,15 @@ select:focus {
   .grid-3,
   .grid-2 {
     grid-template-columns: 1fr;
+  }
+
+  .auth-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-side,
+  .auth-card {
+    min-height: auto;
   }
 
   .hero {
