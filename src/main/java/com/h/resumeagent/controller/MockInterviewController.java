@@ -90,6 +90,11 @@ public class MockInterviewController {
         return "history";
     }
 
+    @GetMapping("/interview-entry")
+    public String interviewEntryPage() {
+        return "interview-entry";
+    }
+
     /**
      * 上传简历文件并评分
      */

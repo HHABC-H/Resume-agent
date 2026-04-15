@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -13,6 +13,7 @@
         <nav class="nav">
             <a href="/">首页</a>
             <a href="/upload">上传简历</a>
+            <a href="/interview-entry">模拟面试</a>
             <a href="/history" class="active">历史记录</a>
             <a href="/profile">个人中心</a>
             <div id="authActions" class="nav-auth"></div>
@@ -20,20 +21,26 @@
     </header>
 
     <section class="hero">
-        <span class="chip">后端新功能</span>
+        <span class="chip">记录分栏</span>
         <h1>历史会话追踪</h1>
-        <p>这里会展示最近的简历会话，包含流程状态、评分和更新时间，便于持续复盘。</p>
+        <p>已将“简历分析记录”和“面试记录”分开展示，你可以更快定位当前需要继续的流程。</p>
     </section>
 
     <section class="panel" style="margin-top: 16px;">
-        <div class="footer-actions" style="margin-top: 0; margin-bottom: 12px;">
-            <button class="btn btn-primary" id="refreshBtn" type="button">刷新列表</button>
-            <a class="btn btn-secondary" href="/upload">新建一次面试</a>
+        <div class="history-toolbar">
+            <div class="tabs" style="margin-bottom: 0;">
+                <button type="button" id="tabInterviewBtn" class="tab-btn active">面试记录</button>
+                <button type="button" id="tabAnalysisBtn" class="tab-btn">简历分析记录</button>
+            </div>
+            <div class="footer-actions" style="margin-top: 0;">
+                <a class="btn btn-primary" href="/interview-entry">模拟面试</a>
+                <a class="btn btn-secondary" href="/upload">上传简历</a>
+            </div>
         </div>
 
         <div id="errorMessage" class="message error" style="display: none;"></div>
 
-        <table class="table">
+        <table class="table" style="margin-top: 12px;">
             <thead>
             <tr>
                 <th>Resume ID</th>
@@ -61,7 +68,19 @@ AuthClient.initPage({ requireAuth: true });
 
 const historyBody = document.getElementById('historyBody');
 const errorMessage = document.getElementById('errorMessage');
-const refreshBtn = document.getElementById('refreshBtn');
+const tabInterviewBtn = document.getElementById('tabInterviewBtn');
+const tabAnalysisBtn = document.getElementById('tabAnalysisBtn');
+
+const RECORD_INTERVIEW = 'interview';
+const RECORD_ANALYSIS = 'analysis';
+
+let currentRecordType = resolveInitialRecordType();
+let allHistoryRecords = [];
+
+function resolveInitialRecordType() {
+    const type = new URLSearchParams(window.location.search).get('type');
+    return type === RECORD_ANALYSIS ? RECORD_ANALYSIS : RECORD_INTERVIEW;
+}
 
 function formatTime(time) {
     if (!time) return '-';
@@ -88,14 +107,90 @@ function getPositionLabel(positionType) {
     return labels[positionType] || '后端 Java';
 }
 
-function getActionUrl(item) {
+function isInterviewRecord(item) {
+    return item.status === 'QUESTIONS_READY' || item.status === 'EVALUATED';
+}
+
+function isAnalysisRecord(item) {
+    return item.status === 'ANALYZED';
+}
+
+function getFilteredRecords() {
+    return allHistoryRecords.filter((item) => {
+        if (currentRecordType === RECORD_ANALYSIS) {
+            return isAnalysisRecord(item);
+        }
+        return isInterviewRecord(item);
+    });
+}
+
+function renderActionButtons(item) {
+    if (currentRecordType === RECORD_ANALYSIS) {
+        return `
+            <div class="table-actions">
+                <a class="btn btn-secondary btn-mini" href="/analysis/${item.resumeId}">查看分析</a>
+                <a class="btn btn-primary btn-mini" href="/interview/${item.resumeId}">开始模拟面试</a>
+            </div>
+        `;
+    }
+
     if (item.status === 'EVALUATED') {
-        return `/result/${item.resumeId}`;
+        return `
+            <div class="table-actions">
+                <a class="btn btn-primary btn-mini" href="/result/${item.resumeId}">查看面试结果</a>
+                <a class="btn btn-secondary btn-mini" href="/analysis/${item.resumeId}">查看分析</a>
+            </div>
+        `;
     }
-    if (item.status === 'QUESTIONS_READY') {
-        return `/interview/${item.resumeId}`;
+
+    return `
+        <div class="table-actions">
+            <a class="btn btn-primary btn-mini" href="/interview/${item.resumeId}">继续面试</a>
+            <a class="btn btn-secondary btn-mini" href="/analysis/${item.resumeId}">查看分析</a>
+        </div>
+    `;
+}
+
+function renderHistoryTable() {
+    const rows = getFilteredRecords();
+    if (!rows.length) {
+        const text = currentRecordType === RECORD_ANALYSIS
+            ? '暂无简历分析记录，先去上传简历完成分析。'
+            : '暂无面试记录，先从简历分析记录里开始模拟面试。';
+        historyBody.innerHTML = `<tr><td colspan="8" class="muted">${text}</td></tr>`;
+        return;
     }
-    return `/analysis/${item.resumeId}`;
+
+    historyBody.innerHTML = rows.map((item) => `
+        <tr>
+            <td>${item.resumeId}</td>
+            <td>${getStatusLabel(item.status)}</td>
+            <td>${getPositionLabel(item.positionType)}</td>
+            <td>${item.resumeScore ?? '-'}</td>
+            <td>${item.evaluationScore ?? '-'}</td>
+            <td>${item.questionCount ?? 0}</td>
+            <td>${formatTime(item.updatedAt)}</td>
+            <td>${renderActionButtons(item)}</td>
+        </tr>
+    `).join('');
+}
+
+function syncTabState() {
+    tabInterviewBtn.classList.toggle('active', currentRecordType === RECORD_INTERVIEW);
+    tabAnalysisBtn.classList.toggle('active', currentRecordType === RECORD_ANALYSIS);
+}
+
+function syncUrlState() {
+    const url = new URL(window.location.href);
+    url.searchParams.set('type', currentRecordType);
+    window.history.replaceState(null, '', url);
+}
+
+function switchRecordType(type) {
+    currentRecordType = type;
+    syncTabState();
+    syncUrlState();
+    renderHistoryTable();
 }
 
 async function loadHistory() {
@@ -109,25 +204,8 @@ async function loadHistory() {
         }
 
         const data = await response.json();
-        if (!Array.isArray(data) || data.length === 0) {
-            historyBody.innerHTML = '<tr><td colspan="8" class="muted">暂无历史记录，先去上传简历体验一次流程。</td></tr>';
-            return;
-        }
-
-        historyBody.innerHTML = data.map((item) => {
-            return `
-                <tr>
-                    <td>${item.resumeId}</td>
-                    <td>${getStatusLabel(item.status)}</td>
-                    <td>${getPositionLabel(item.positionType)}</td>
-                    <td>${item.resumeScore ?? '-'}</td>
-                    <td>${item.evaluationScore ?? '-'}</td>
-                    <td>${item.questionCount ?? 0}</td>
-                    <td>${formatTime(item.updatedAt)}</td>
-                    <td><a class="btn btn-secondary" href="${getActionUrl(item)}" style="padding:6px 12px; font-size:13px;">继续查看</a></td>
-                </tr>
-            `;
-        }).join('');
+        allHistoryRecords = Array.isArray(data) ? data : [];
+        renderHistoryTable();
     } catch (error) {
         historyBody.innerHTML = '<tr><td colspan="8" class="muted">加载失败，请重试。</td></tr>';
         errorMessage.textContent = error.message || '加载失败';
@@ -135,8 +213,14 @@ async function loadHistory() {
     }
 }
 
-refreshBtn.addEventListener('click', loadHistory);
-document.addEventListener('DOMContentLoaded', loadHistory);
+tabInterviewBtn.addEventListener('click', () => switchRecordType(RECORD_INTERVIEW));
+tabAnalysisBtn.addEventListener('click', () => switchRecordType(RECORD_ANALYSIS));
+
+document.addEventListener('DOMContentLoaded', () => {
+    syncTabState();
+    syncUrlState();
+    loadHistory();
+});
 </script>
 </body>
 </html>

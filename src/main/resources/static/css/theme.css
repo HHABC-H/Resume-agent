@@ -387,6 +387,26 @@ select:focus {
   margin-top: 18px;
 }
 
+.history-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-mini {
+  padding: 6px 12px;
+  font-size: 13px;
+  min-height: 32px;
+}
+
 .tabs {
   display: flex;
   gap: 8px;
@@ -454,6 +474,15 @@ select:focus {
 
   .panel {
     padding: 16px;
+  }
+
+  .history-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .history-toolbar .footer-actions {
+    width: 100%;
   }
 
   .score-circle {
