@@ -21,8 +21,18 @@ spring:
           enable-thinking: true
     minimax:
       api-key: ${MINIMAX_API_KEY}
+  mvc:
+    async:
+      request-timeout: 600000
 server:
   port: 8080
+
+app:
+  ai:
+    retry:
+      max-attempts: 3
+      backoff-ms: 800
+      max-backoff-ms: 4000
 
 logging:
     level:

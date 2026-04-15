@@ -38,8 +38,13 @@ import org.springframework.core.io.Resource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 
 import java.io.IOException;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -84,6 +89,15 @@ public class MockInterviewService {
     @Value("classpath:/prompt/resume-analysis-user.st")
     Resource resumeAnalysisUserresource;
 
+    @Value("${app.ai.retry.max-attempts:3}")
+    int aiRetryMaxAttempts = 3;
+
+    @Value("${app.ai.retry.backoff-ms:800}")
+    long aiRetryBackoffMs = 800L;
+
+    @Value("${app.ai.retry.max-backoff-ms:4000}")
+    long aiRetryMaxBackoffMs = 4_000L;
+
     public MockInterviewService(DashScopeChatModel chatModel, ObjectMapper objectMapper) {
         this.chatModel = chatModel;
         this.objectMapper = objectMapper;
@@ -95,7 +109,7 @@ public class MockInterviewService {
         PromptTemplate promptTemplate = new PromptTemplate(resumeAnalysisUserresource.getContentAsString(StandardCharsets.UTF_8));
         messages.add(new UserMessage(promptTemplate.render(Map.of("resumeText", resumeText))));
         Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder().temperature(0.7).build());
-        String response = chatModel.call(prompt).getResult().getOutput().getText();
+        String response = executeAiCallWithRetry("简历评分", () -> chatModel.call(prompt).getResult().getOutput().getText());
         return parseResumeScoreResult(response);
     }
 
@@ -116,7 +130,7 @@ public class MockInterviewService {
         );
         messages.add(new UserMessage(userPrompt));
         Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder().temperature(0.7).build());
-        String response = chatModel.call(prompt).getResult().getOutput().getText();
+        String response = executeAiCallWithRetry("面试问题生成", () -> chatModel.call(prompt).getResult().getOutput().getText());
         return parseInterviewQuestions(response);
     }
 
@@ -147,7 +161,7 @@ public class MockInterviewService {
                 qaText
         )));
         Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder().temperature(0.7).build());
-        String response = chatModel.call(prompt).getResult().getOutput().getText();
+        String response = executeAiCallWithRetry("面试答案评估", () -> chatModel.call(prompt).getResult().getOutput().getText());
         return parseInterviewEvaluation(response);
     }
 
@@ -707,5 +721,74 @@ public class MockInterviewService {
         else if (json.startsWith("```")) json = json.substring(3);
         if (json.endsWith("```")) json = json.substring(0, json.length() - 3);
         return json.trim();
+    }
+
+    String executeAiCallWithRetry(String scene, java.util.function.Supplier<String> action) {
+        int maxAttempts = Math.max(1, aiRetryMaxAttempts);
+        RuntimeException lastException = null;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return action.get();
+            } catch (RuntimeException ex) {
+                lastException = ex;
+                boolean retryable = isRetryableAiException(ex);
+                if (!retryable || attempt == maxAttempts) {
+                    throw ex;
+                }
+
+                long waitMillis = retryBackoffMillis(attempt);
+                logger.warn("{} 第{}次调用失败，将在 {}ms 后重试：{}", scene, attempt, waitMillis, shortMessage(ex));
+                try {
+                    Thread.sleep(waitMillis);
+                } catch (InterruptedException interruptedException) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("AI调用重试被中断", interruptedException);
+                }
+            }
+        }
+        throw lastException == null ? new IllegalStateException(scene + " 调用失败") : lastException;
+    }
+
+    private long retryBackoffMillis(int attempt) {
+        long base = Math.max(0L, aiRetryBackoffMs);
+        long cap = Math.max(base, aiRetryMaxBackoffMs);
+        long multiplier = 1L << Math.min(Math.max(0, attempt - 1), 8);
+        long delay = base * multiplier;
+        return Math.min(delay, cap);
+    }
+
+    private boolean isRetryableAiException(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof ResourceAccessException
+                    || current instanceof SocketException
+                    || current instanceof SocketTimeoutException
+                    || current instanceof HttpServerErrorException
+                    || current instanceof HttpClientErrorException.TooManyRequests) {
+                return true;
+            }
+            String message = current.getMessage();
+            if (message != null) {
+                String lower = message.toLowerCase();
+                if (lower.contains("connection reset")
+                        || lower.contains("read timed out")
+                        || lower.contains("connect timed out")
+                        || lower.contains("timeout")
+                        || lower.contains("temporarily unavailable")) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private String shortMessage(Throwable throwable) {
+        String message = throwable.getMessage();
+        if (StringUtils.isNotBlank(message)) {
+            return message;
+        }
+        return throwable.getClass().getSimpleName();
     }
 }

@@ -12,6 +12,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.reader.tika.TikaDocumentReader;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -25,19 +27,27 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Controller
 public class MockInterviewController {
 
     private static final Logger logger = LoggerFactory.getLogger(MockInterviewController.class);
     private static final String TOKEN_COOKIE_NAME = "RA_TOKEN";
+    private static final long SSE_TIMEOUT_MILLIS = 600_000L;
 
     private final MockInterviewService interviewService;
     private final AuthService authService;
+    private final AsyncTaskExecutor sseTaskExecutor;
 
-    public MockInterviewController(MockInterviewService interviewService, AuthService authService) {
+    public MockInterviewController(
+            MockInterviewService interviewService,
+            AuthService authService,
+            @Qualifier("sseTaskExecutor")
+            AsyncTaskExecutor sseTaskExecutor) {
         this.interviewService = interviewService;
         this.authService = authService;
+        this.sseTaskExecutor = sseTaskExecutor;
     }
 
     /**
@@ -231,33 +241,40 @@ public class MockInterviewController {
     @GetMapping(value = "/api/interview/{resumeId}/questions/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @ResponseBody
     public SseEmitter generateQuestionsStream(@PathVariable String resumeId, HttpServletRequest request) {
-        SseEmitter emitter = new SseEmitter(180000L);
+        EmitterState emitterState = createEmitterState();
+        SseEmitter emitter = emitterState.emitter;
         Long userId = currentUserId(request);
         ResumeData resumeData = interviewService.getResumeById(resumeId, userId);
         if (resumeData == null) {
-            sendEvent(emitter, "error", Map.of("message", "会话不存在或无权限访问"));
-            emitter.complete();
+            sendEvent(emitterState, "error", Map.of("message", "会话不存在或无权限访问"));
+            completeEmitter(emitterState);
             return emitter;
         }
 
         CompletableFuture.runAsync(() -> {
             try {
-                sendEvent(emitter, "progress", Map.of("stage", "start", "message", "正在生成面试问题..."));
+                if (!sendEvent(emitterState, "progress", Map.of("stage", "start", "message", "正在生成面试问题..."))) {
+                    return;
+                }
                 InterviewQuestions questions = interviewService.generateInterviewQuestions(
                         resumeData.getResumeText(),
                         resumeData.getPositionType()
                 );
-                sendEvent(emitter, "progress", Map.of("stage", "saving", "message", "正在保存问题..."));
+                if (!sendEvent(emitterState, "progress", Map.of("stage", "saving", "message", "正在保存问题..."))) {
+                    return;
+                }
                 interviewService.saveQuestions(resumeId, questions);
-                sendEvent(emitter, "result", questions);
-                sendEvent(emitter, "done", Map.of("message", "问题生成完成"));
-                emitter.complete();
+                if (!sendEvent(emitterState, "result", questions)) {
+                    return;
+                }
+                sendEvent(emitterState, "done", Map.of("message", "问题生成完成"));
+                completeEmitter(emitterState);
             } catch (Exception e) {
                 logger.error("流式生成问题失败", e);
-                sendEvent(emitter, "error", Map.of("message", "生成问题失败：" + e.getMessage()));
-                emitter.completeWithError(e);
+                sendEvent(emitterState, "error", Map.of("message", "生成问题失败：" + e.getMessage()));
+                completeEmitterWithError(emitterState, e);
             }
-        });
+        }, sseTaskExecutor);
         return emitter;
     }
 
@@ -298,35 +315,42 @@ public class MockInterviewController {
             @PathVariable String resumeId,
             @RequestBody Map<Integer, String> answers,
             HttpServletRequest request) {
-        SseEmitter emitter = new SseEmitter(180000L);
+        EmitterState emitterState = createEmitterState();
+        SseEmitter emitter = emitterState.emitter;
         Long userId = currentUserId(request);
         ResumeData resumeData = interviewService.getResumeById(resumeId, userId);
         if (resumeData == null) {
-            sendEvent(emitter, "error", Map.of("message", "会话不存在或无权限访问"));
-            emitter.complete();
+            sendEvent(emitterState, "error", Map.of("message", "会话不存在或无权限访问"));
+            completeEmitter(emitterState);
             return emitter;
         }
 
         CompletableFuture.runAsync(() -> {
             try {
-                sendEvent(emitter, "progress", Map.of("stage", "start", "message", "正在评估回答..."));
+                if (!sendEvent(emitterState, "progress", Map.of("stage", "start", "message", "正在评估回答..."))) {
+                    return;
+                }
                 InterviewEvaluation evaluation = interviewService.evaluateAnswers(
                         resumeData.getResumeText(),
                         resumeData.getPositionType(),
                         resumeData.getQuestions(),
                         answers
                 );
-                sendEvent(emitter, "progress", Map.of("stage", "saving", "message", "正在保存评估结果..."));
+                if (!sendEvent(emitterState, "progress", Map.of("stage", "saving", "message", "正在保存评估结果..."))) {
+                    return;
+                }
                 interviewService.saveEvaluation(resumeId, evaluation);
-                sendEvent(emitter, "result", evaluation);
-                sendEvent(emitter, "done", Map.of("message", "评估完成"));
-                emitter.complete();
+                if (!sendEvent(emitterState, "result", evaluation)) {
+                    return;
+                }
+                sendEvent(emitterState, "done", Map.of("message", "评估完成"));
+                completeEmitter(emitterState);
             } catch (Exception e) {
                 logger.error("流式评估答案失败", e);
-                sendEvent(emitter, "error", Map.of("message", "评估失败：" + e.getMessage()));
-                emitter.completeWithError(e);
+                sendEvent(emitterState, "error", Map.of("message", "评估失败：" + e.getMessage()));
+                completeEmitterWithError(emitterState, e);
             }
-        });
+        }, sseTaskExecutor);
         return emitter;
     }
 
@@ -377,10 +401,60 @@ public class MockInterviewController {
         return null;
     }
 
-    private void sendEvent(SseEmitter emitter, String event, Object data) {
+    private EmitterState createEmitterState() {
+        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MILLIS);
+        EmitterState state = new EmitterState(emitter);
+        emitter.onCompletion(() -> state.completed.set(true));
+        emitter.onTimeout(() -> {
+            if (state.completed.compareAndSet(false, true)) {
+                logger.warn("SSE 请求超时: {} ms", SSE_TIMEOUT_MILLIS);
+                try {
+                    emitter.complete();
+                } catch (IllegalStateException ignored) {
+                }
+            }
+        });
+        emitter.onError(ex -> state.completed.set(true));
+        return state;
+    }
+
+    private boolean sendEvent(EmitterState state, String event, Object data) {
+        if (state.completed.get()) {
+            return false;
+        }
         try {
-            emitter.send(SseEmitter.event().name(event).data(data));
-        } catch (IOException ignored) {
+            state.emitter.send(SseEmitter.event().name(event).data(data));
+            return true;
+        } catch (IOException | IllegalStateException ignored) {
+            state.completed.set(true);
+            return false;
+        }
+    }
+
+    private void completeEmitter(EmitterState state) {
+        if (state.completed.compareAndSet(false, true)) {
+            try {
+                state.emitter.complete();
+            } catch (IllegalStateException ignored) {
+            }
+        }
+    }
+
+    private void completeEmitterWithError(EmitterState state, Exception ex) {
+        if (state.completed.compareAndSet(false, true)) {
+            try {
+                state.emitter.completeWithError(ex);
+            } catch (IllegalStateException ignored) {
+            }
+        }
+    }
+
+    private static class EmitterState {
+        private final SseEmitter emitter;
+        private final AtomicBoolean completed = new AtomicBoolean(false);
+
+        private EmitterState(SseEmitter emitter) {
+            this.emitter = emitter;
         }
     }
 }
