@@ -308,22 +308,51 @@ CREATE TABLE IF NOT EXISTS `evaluation_reference_key_point` (
 -- 13) 历史记录查询视图
 -- =====================================================
 DROP VIEW IF EXISTS `v_resume_history`;
-CREATE VIEW `v_resume_history` AS
-SELECT
-    rs.`user_id`,
-    u.`username`,
-    u.`display_name`,
-    rs.`resume_id`,
-    rs.`status`,
-    rs.`position_type`,
-    rs.`resume_overall_score`,
-    rs.`evaluation_overall_score`,
-    (SELECT COUNT(*) FROM `interview_question` iq WHERE iq.`resume_session_id` = rs.`id`) AS `question_count`,
-    rs.`created_at`,
-    rs.`updated_at`
-FROM `resume_session` rs
-         LEFT JOIN `user` u ON u.`id` = rs.`user_id`
-ORDER BY rs.`updated_at` DESC;
+
+-- 13.1) 兼容老库：动态创建历史视图（避免 position_type 缺失导致视图创建失败）
+SET @has_user_id = (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'resume_session'
+      AND COLUMN_NAME = 'user_id'
+);
+
+SET @has_position_type = (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'resume_session'
+      AND COLUMN_NAME = 'position_type'
+);
+
+SET @user_id_expr = IF(@has_user_id > 0, 'rs.`user_id`', 'NULL');
+SET @join_user_expr = IF(@has_user_id > 0,
+                         'LEFT JOIN `user` u ON u.`id` = rs.`user_id`',
+                         'LEFT JOIN `user` u ON 1=0');
+SET @position_type_expr = IF(@has_position_type > 0, 'rs.`position_type`', '''BACKEND_JAVA''');
+
+SET @create_view_sql = CONCAT(
+        'CREATE VIEW `v_resume_history` AS ',
+        'SELECT ',
+        '  ', @user_id_expr, ' AS `user_id`, ',
+        '  u.`username`, ',
+        '  u.`display_name`, ',
+        '  rs.`resume_id`, ',
+        '  rs.`status`, ',
+        '  ', @position_type_expr, ' AS `position_type`, ',
+        '  rs.`resume_overall_score`, ',
+        '  rs.`evaluation_overall_score`, ',
+        '  (SELECT COUNT(*) FROM `interview_question` iq WHERE iq.`resume_session_id` = rs.`id`) AS `question_count`, ',
+        '  rs.`created_at`, ',
+        '  rs.`updated_at` ',
+        'FROM `resume_session` rs ',
+        @join_user_expr, ' ',
+        'ORDER BY rs.`updated_at` DESC'
+                       );
+PREPARE stmt FROM @create_view_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- =====================================================
 -- 完成
