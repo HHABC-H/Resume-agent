@@ -392,7 +392,18 @@ select:focus {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  margin-bottom: 14px;
+}
+
+.history-tabs {
+  margin-bottom: 0;
+}
+
+.history-actions {
+  margin-top: 0;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
 }
 
 .table-actions {
@@ -479,10 +490,14 @@ select:focus {
   .history-toolbar {
     flex-direction: column;
     align-items: flex-start;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
   }
 
   .history-toolbar .footer-actions {
     width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
   .score-circle {
