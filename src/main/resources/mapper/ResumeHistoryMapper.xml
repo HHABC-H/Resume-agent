@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.h.resumeagent.mapper.ResumeHistoryMapper">
+
+    <resultMap id="ResumeHistoryItemMap" type="com.h.resumeagent.common.dto.ResumeHistoryItem">
+        <result column="resumeId" property="resumeId"/>
+        <result column="status" property="status"/>
+        <result column="positionType" property="positionType"/>
+        <result column="resumeScore" property="resumeScore"/>
+        <result column="evaluationScore" property="evaluationScore"/>
+        <result column="questionCount" property="questionCount"/>
+        <result column="createdAt" property="createdAt"/>
+        <result column="updatedAt" property="updatedAt"/>
+    </resultMap>
+
+    <select id="selectRecentHistory" resultMap="ResumeHistoryItemMap">
+        SELECT
+            resume_id AS resumeId,
+            status AS status,
+            COALESCE(position_type, 'BACKEND_JAVA') AS positionType,
+            resume_overall_score AS resumeScore,
+            evaluation_overall_score AS evaluationScore,
+            COALESCE(question_count, 0) AS questionCount,
+            created_at AS createdAt,
+            updated_at AS updatedAt
+        FROM v_resume_history
+        ORDER BY updated_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectRecentHistoryByUserId" resultMap="ResumeHistoryItemMap">
+        SELECT
+            resume_id AS resumeId,
+            status AS status,
+            COALESCE(position_type, 'BACKEND_JAVA') AS positionType,
+            resume_overall_score AS resumeScore,
+            evaluation_overall_score AS evaluationScore,
+            COALESCE(question_count, 0) AS questionCount,
+            created_at AS createdAt,
+            updated_at AS updatedAt
+        FROM v_resume_history
+        WHERE user_id = #{userId}
+        ORDER BY updated_at DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

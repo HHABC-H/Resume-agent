@@ -23,7 +23,7 @@ class MockInterviewServiceRetryTests {
 
     @BeforeEach
     void setUp() throws Exception {
-        serviceClass = Class.forName("com.h.resumeagent.service.MockInterviewService");
+        serviceClass = Class.forName("com.h.resumeagent.service.impl.MockInterviewServiceImpl");
         service = serviceClass
                 .getConstructor(DashScopeChatModel.class, ObjectMapper.class)
                 .newInstance(mock(DashScopeChatModel.class), new ObjectMapper());

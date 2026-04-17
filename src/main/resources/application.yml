@@ -39,3 +39,8 @@ logging:
       org.springframework.ai: DEBUG
       com.alibaba.cloud.ai: DEBUG
       org.hibernate.SQL: INFO
+
+mybatis:
+  mapper-locations: classpath:/mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
