@@ -88,6 +88,9 @@ public class MockInterviewService {
     @Value("classpath:/prompt/interview-question-system.st")
     Resource interviewQuestionsSystemPromptresource;
 
+    @Value("classpath:/prompt/interview-followup-system.st")
+    Resource interviewFollowupSystemPromptResource;
+
     @Value("classpath:/prompt/resume-analysis-user.st")
     Resource resumeAnalysisUserresource;
 
@@ -134,6 +137,45 @@ public class MockInterviewService {
         Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder().temperature(0.7).build());
         String response = executeAiCallWithRetry("面试问题生成", () -> chatModel.call(prompt).getResult().getOutput().getText());
         return parseInterviewQuestions(response);
+    }
+
+    public String generateFollowUpQuestion(
+            String resumeText,
+            String positionType,
+            InterviewQuestions.Question question,
+            String answer) throws JsonProcessingException {
+        if (question == null || StringUtils.isBlank(question.getQuestion())) {
+            throw new IllegalArgumentException("当前题目信息无效");
+        }
+        if (StringUtils.isBlank(answer)) {
+            throw new IllegalArgumentException("请先回答当前题目，再生成追问");
+        }
+
+        String normalizedPositionType = normalizePositionType(positionType);
+        List<Message> messages = new ArrayList<>();
+        messages.add(new SystemMessage(interviewFollowupSystemPromptResource));
+        messages.add(new UserMessage("""
+                目标岗位：%s
+                岗位侧重点：%s
+                候选人简历摘要：
+                %s
+
+                当前面试题：
+                %s
+
+                候选人当前回答：
+                %s
+                """.formatted(
+                normalizedPositionType,
+                buildEvaluationPositionContext(normalizedPositionType),
+                StringUtils.defaultIfBlank(resumeText, "简历内容为空"),
+                question.getQuestion(),
+                answer
+        )));
+
+        Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder().temperature(0.4).build());
+        String response = executeAiCallWithRetry("面试追问生成", () -> chatModel.call(prompt).getResult().getOutput().getText());
+        return parseFollowUpQuestion(response);
     }
 
     public InterviewEvaluation evaluateAnswers(
@@ -682,6 +724,37 @@ public class MockInterviewService {
         }
     }
 
+    String parseFollowUpQuestion(String json) throws JsonProcessingException {
+        String cleaned = cleanJsonResponse(StringUtils.defaultString(json));
+        if (StringUtils.isBlank(cleaned)) {
+            throw new RuntimeException("追问解析失败: 空响应");
+        }
+        try {
+            JsonNode rootNode = objectMapper.readTree(cleaned);
+            String followUpQuestion = null;
+            if (rootNode.isObject()) {
+                followUpQuestion = firstNonBlank(
+                        rootNode.path("followUpQuestion").asText(null),
+                        rootNode.path("question").asText(null),
+                        rootNode.path("followup").asText(null),
+                        rootNode.path("nextQuestion").asText(null)
+                );
+            } else if (rootNode.isTextual()) {
+                followUpQuestion = rootNode.asText();
+            }
+            if (StringUtils.isBlank(followUpQuestion)) {
+                throw new RuntimeException("追问解析失败: 缺少 followUpQuestion 字段");
+            }
+            return followUpQuestion.trim();
+        } catch (JsonProcessingException ex) {
+            return cleaned.trim();
+        } catch (RuntimeException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new RuntimeException("追问解析失败: " + ex.getMessage(), ex);
+        }
+    }
+
     private InterviewEvaluation parseInterviewEvaluation(String json) throws JsonProcessingException {
         json = cleanJsonResponse(json);
         try {
@@ -823,6 +896,18 @@ public class MockInterviewService {
             return message;
         }
         return throwable.getClass().getSimpleName();
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (StringUtils.isNotBlank(value)) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private boolean isHistoryViewSchemaException(Throwable throwable) {

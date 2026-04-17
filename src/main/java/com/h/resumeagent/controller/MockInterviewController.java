@@ -3,12 +3,15 @@ package com.h.resumeagent.controller;
 import com.h.resumeagent.auth.AuthService;
 import com.h.resumeagent.auth.AuthTokenInterceptor;
 import com.h.resumeagent.common.dto.InterviewEvaluation;
+import com.h.resumeagent.common.dto.InterviewFollowUpRequest;
+import com.h.resumeagent.common.dto.InterviewFollowUpResponse;
 import com.h.resumeagent.common.dto.InterviewQuestions;
 import com.h.resumeagent.common.dto.ResumeData;
 import com.h.resumeagent.common.dto.ResumeScoreResult;
 import jakarta.servlet.http.Cookie;
 import com.h.resumeagent.service.MockInterviewService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.reader.tika.TikaDocumentReader;
@@ -241,6 +244,55 @@ public class MockInterviewController {
         } catch (Exception e) {
             logger.error("生成问题失败", e);
             return ResponseEntity.internalServerError().body(Map.of("error", "生成问题失败：" + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/api/interview/{resumeId}/follow-up")
+    @ResponseBody
+    public ResponseEntity<?> generateFollowUpQuestion(
+            @PathVariable String resumeId,
+            @RequestBody InterviewFollowUpRequest followUpRequest,
+            HttpServletRequest request) {
+        try {
+            Long userId = currentUserId(request);
+            ResumeData resumeData = interviewService.getResumeById(resumeId, userId);
+            if (resumeData == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            if (followUpRequest == null || followUpRequest.getQuestionIndex() == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "questionIndex 不能为空"));
+            }
+            if (StringUtils.isBlank(followUpRequest.getAnswer())) {
+                return ResponseEntity.badRequest().body(Map.of("error", "请先回答当前问题，再生成追问"));
+            }
+            if (resumeData.getQuestions() == null || resumeData.getQuestions().getQuestions() == null
+                    || resumeData.getQuestions().getQuestions().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "请先生成面试题"));
+            }
+
+            int questionIndex = followUpRequest.getQuestionIndex();
+            if (questionIndex < 0 || questionIndex >= resumeData.getQuestions().getQuestions().size()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "questionIndex 越界"));
+            }
+
+            InterviewQuestions.Question currentQuestion = resumeData.getQuestions().getQuestions().get(questionIndex);
+            String followUpQuestion = interviewService.generateFollowUpQuestion(
+                    resumeData.getResumeText(),
+                    resumeData.getPositionType(),
+                    currentQuestion,
+                    followUpRequest.getAnswer()
+            );
+
+            return ResponseEntity.ok(InterviewFollowUpResponse.builder()
+                    .questionIndex(questionIndex)
+                    .followUpQuestion(followUpQuestion)
+                    .build());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            logger.error("生成追问失败", e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "生成追问失败：" + e.getMessage()));
         }
     }
 

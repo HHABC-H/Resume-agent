@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -23,19 +23,24 @@
     <section class="hero">
         <span class="chip">步骤 3 / 4</span>
         <h1>开始模拟面试</h1>
-        <p>问题正在按你的简历内容生成。建议回答时给出项目背景、行动方案和最终结果，提升评估准确度。</p>
+        <p>面试已改为分页模式：你可以按顺序切到下一题，也可以在当前题点击“追问细节”继续深挖后再答。</p>
     </section>
 
     <section class="panel" style="margin-top: 16px;">
         <h2>答题提示</h2>
         <ul class="list muted">
             <li>优先用 STAR 结构组织答案（情境-任务-行动-结果）。</li>
-            <li>尽量给出真实项目中的决策与指标结果。</li>
-            <li>不会的题目可说明思路，不必空白提交。</li>
+            <li>先回答主问题，再根据需要触发追问并补充细节。</li>
+            <li>每次切题会自动保存当前输入，无需手动保存。</li>
         </ul>
     </section>
 
     <section id="streamStatus" class="panel muted" style="margin-top: 16px;">正在准备流式会话...</section>
+
+    <section id="questionMeta" class="panel muted" style="margin-top: 16px; display: none;">
+        <strong id="questionProgress">问题 1 / 1</strong>
+        <span id="questionHint" style="margin-left: 8px;">请先回答主问题，再决定是否追问细节。</span>
+    </section>
 
     <div id="questionsContainer" style="margin-top: 16px;">
         <section class="panel muted">正在生成面试问题...</section>
@@ -43,7 +48,9 @@
 
     <div id="buttonContainer" class="footer-actions" style="display: none;">
         <a th:href="@{/analysis/{resumeId}(resumeId=${resumeId})}" class="btn btn-secondary">返回分析</a>
-        <button type="button" class="btn btn-primary" onclick="submitAnswers()">提交答案</button>
+        <button id="prevQuestionBtn" type="button" class="btn btn-secondary">上一题</button>
+        <button id="nextQuestionBtn" type="button" class="btn btn-secondary">下一题</button>
+        <button id="submitAllBtn" type="button" class="btn btn-primary">提交全部答案</button>
     </div>
 </div>
 
@@ -53,7 +60,19 @@ AuthClient.initPage({ requireAuth: true });
 
 const resumeId = window.location.pathname.split('/').pop();
 const streamStatus = document.getElementById('streamStatus');
+const questionMeta = document.getElementById('questionMeta');
+const questionProgress = document.getElementById('questionProgress');
+const questionHint = document.getElementById('questionHint');
+const questionsContainer = document.getElementById('questionsContainer');
+const buttonContainer = document.getElementById('buttonContainer');
+const prevQuestionBtn = document.getElementById('prevQuestionBtn');
+const nextQuestionBtn = document.getElementById('nextQuestionBtn');
+const submitAllBtn = document.getElementById('submitAllBtn');
+
 let questions = [];
+let currentQuestionIndex = 0;
+const answerStore = {};
+const followUpStore = {};
 
 function updateStatus(message, isError = false) {
     streamStatus.className = isError ? 'panel message error' : 'panel muted';
@@ -66,6 +85,99 @@ function safeJson(raw) {
     } catch (e) {
         return null;
     }
+}
+
+function getTypeName(type) {
+    const mapping = {
+        PROJECT: '项目经历',
+        JAVA_BASIC: 'Java 基础',
+        JAVA_COLLECTION: 'Java 集合',
+        JAVA_CONCURRENT: 'Java 并发',
+        MYSQL: '数据库',
+        REDIS: '缓存',
+        SPRING: 'Spring 框架',
+        SPRING_BOOT: 'Spring Boot',
+        AI: 'AI 应用'
+    };
+    return mapping[type] || type;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+}
+
+function saveCurrentInputs() {
+    const mainInput = document.getElementById('mainAnswer');
+    if (mainInput) {
+        answerStore[currentQuestionIndex] = mainInput.value;
+    }
+    const followInput = document.getElementById('followUpAnswer');
+    if (followInput && followUpStore[currentQuestionIndex]) {
+        followUpStore[currentQuestionIndex].answer = followInput.value;
+    }
+}
+
+function updateQuestionMeta() {
+    questionProgress.textContent = `问题 ${currentQuestionIndex + 1} / ${questions.length}`;
+    questionHint.textContent = '可点“追问细节”在当前题继续深挖；点“下一题”进入下一题。';
+    questionMeta.style.display = questions.length ? 'block' : 'none';
+}
+
+function updatePaginationButtons() {
+    prevQuestionBtn.disabled = currentQuestionIndex <= 0;
+    nextQuestionBtn.disabled = currentQuestionIndex >= questions.length - 1;
+}
+
+function renderCurrentQuestion() {
+    if (!questions.length) {
+        questionsContainer.innerHTML = '<section class="panel muted">暂无问题，请返回重新上传。</section>';
+        buttonContainer.style.display = 'none';
+        questionMeta.style.display = 'none';
+        return;
+    }
+
+    const question = questions[currentQuestionIndex];
+    const followUp = followUpStore[currentQuestionIndex];
+
+    questionsContainer.innerHTML = `
+        <section class="panel question-block">
+            <div class="chip">问题 ${currentQuestionIndex + 1}/${questions.length} · ${getTypeName(question.type)}</div>
+            <h2 style="margin-top: 10px; font-size: 20px;">${escapeHtml(question.question)}</h2>
+
+            <label for="mainAnswer" class="muted"><strong>主问题回答</strong></label>
+            <textarea id="mainAnswer" rows="6" placeholder="请输入你的回答"></textarea>
+
+            <div class="footer-actions" style="margin-top: 12px;">
+                <button id="followUpBtn" type="button" class="btn btn-secondary">追问细节</button>
+            </div>
+
+            <div id="followUpBlock" style="margin-top: 10px;">
+                ${followUp ? `
+                    <div class="metric">
+                        <div class="chip">追问</div>
+                        <p style="margin: 8px 0 10px;"><strong>${escapeHtml(followUp.question)}</strong></p>
+                        <label for="followUpAnswer" class="muted"><strong>追问回答</strong></label>
+                        <textarea id="followUpAnswer" rows="5" placeholder="请输入你对追问的补充回答"></textarea>
+                    </div>
+                ` : '<p class="muted">当前还没有追问，若需要深入可点击“追问细节”。</p>'}
+            </div>
+        </section>
+    `;
+
+    const mainInput = document.getElementById('mainAnswer');
+    mainInput.value = answerStore[currentQuestionIndex] || '';
+
+    const followInput = document.getElementById('followUpAnswer');
+    if (followInput && followUpStore[currentQuestionIndex]) {
+        followInput.value = followUpStore[currentQuestionIndex].answer || '';
+    }
+
+    document.getElementById('followUpBtn').addEventListener('click', requestFollowUpForCurrentQuestion);
+    buttonContainer.style.display = 'flex';
+    updateQuestionMeta();
+    updatePaginationButtons();
 }
 
 async function loadQuestions() {
@@ -91,9 +203,9 @@ async function loadQuestionsByStream() {
         eventSource.addEventListener('result', (event) => {
             const data = safeJson(event.data) || {};
             questions = data.questions || [];
+            currentQuestionIndex = 0;
             gotResult = true;
-            renderQuestions();
-            document.getElementById('buttonContainer').style.display = 'flex';
+            renderCurrentQuestion();
         });
 
         eventSource.addEventListener('done', (event) => {
@@ -120,14 +232,13 @@ async function loadQuestionsFallback(originalError) {
         if (!response.ok) {
             throw new Error('加载问题失败');
         }
-
         const data = await response.json();
         questions = data.questions || [];
-        renderQuestions();
-        document.getElementById('buttonContainer').style.display = 'flex';
+        currentQuestionIndex = 0;
+        renderCurrentQuestion();
         updateStatus('问题生成完成（普通模式）');
     } catch (error) {
-        document.getElementById('questionsContainer').innerHTML = `
+        questionsContainer.innerHTML = `
             <section class="panel">
                 <p class="message error">${(originalError?.message || '') + ' ' + (error.message || '')}</p>
                 <button class="btn btn-warning" onclick="location.reload()">重试</button>
@@ -136,42 +247,64 @@ async function loadQuestionsFallback(originalError) {
     }
 }
 
-function renderQuestions() {
-    const container = document.getElementById('questionsContainer');
-    if (!questions.length) {
-        container.innerHTML = '<section class="panel muted">暂无问题，请返回重新上传。</section>';
+async function requestFollowUpForCurrentQuestion() {
+    saveCurrentInputs();
+    const answer = (answerStore[currentQuestionIndex] || '').trim();
+    if (!answer) {
+        alert('请先回答当前主问题，再生成追问。');
         return;
     }
 
-    const html = questions.map((q, index) => `
-        <section class="panel question-block" style="margin-bottom: 12px;">
-            <div class="chip">问题 ${index + 1}/${questions.length} · ${getTypeName(q.type)}</div>
-            <h2 style="margin-top: 10px; font-size: 20px;">${escapeHtml(q.question)}</h2>
-            <textarea id="answer_${index}" rows="6" placeholder="请输入你的回答"></textarea>
-        </section>
-    `).join('');
+    const followUpBtn = document.getElementById('followUpBtn');
+    if (followUpBtn) {
+        followUpBtn.disabled = true;
+        followUpBtn.textContent = '生成追问中...';
+    }
 
-    container.innerHTML = html;
+    try {
+        const response = await AuthClient.authFetch(`/api/interview/${resumeId}/follow-up`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                questionIndex: currentQuestionIndex,
+                answer
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data?.error || '生成追问失败');
+        }
+        followUpStore[currentQuestionIndex] = {
+            question: data.followUpQuestion || '请补充当前回答中的关键细节。',
+            answer: (followUpStore[currentQuestionIndex] && followUpStore[currentQuestionIndex].answer) || ''
+        };
+        renderCurrentQuestion();
+        updateStatus('已生成追问，请在当前页面继续回答。');
+    } catch (error) {
+        updateStatus(error.message || '生成追问失败', true);
+        if (followUpBtn) {
+            followUpBtn.disabled = false;
+            followUpBtn.textContent = '追问细节';
+        }
+    }
 }
 
-function getTypeName(type) {
-    const mapping = {
-        PROJECT: '项目经历',
-        JAVA_BASIC: 'Java 基础',
-        JAVA_COLLECTION: 'Java 集合',
-        JAVA_CONCURRENT: 'Java 并发',
-        MYSQL: '数据库',
-        REDIS: '缓存',
-        SPRING: 'Spring 框架',
-        SPRING_BOOT: 'Spring Boot'
-    };
-    return mapping[type] || type;
+function goToNextQuestion() {
+    saveCurrentInputs();
+    if (currentQuestionIndex >= questions.length - 1) {
+        return;
+    }
+    currentQuestionIndex += 1;
+    renderCurrentQuestion();
 }
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+function goToPrevQuestion() {
+    saveCurrentInputs();
+    if (currentQuestionIndex <= 0) {
+        return;
+    }
+    currentQuestionIndex -= 1;
+    renderCurrentQuestion();
 }
 
 async function streamPostSse(url, payload, handlers) {
@@ -228,29 +361,41 @@ async function streamPostSse(url, payload, handlers) {
     }
 }
 
-async function submitAnswers() {
-    const answers = {};
+function buildSubmitAnswersPayload() {
+    const payload = {};
     let hasBlank = false;
 
     questions.forEach((_, index) => {
-        const answer = document.getElementById(`answer_${index}`).value.trim();
-        if (!answer) {
+        const mainAnswer = (answerStore[index] || '').trim();
+        const followUp = followUpStore[index];
+        let finalAnswer = mainAnswer;
+        if (followUp && followUp.question) {
+            const followUpAnswer = (followUp.answer || '').trim();
+            const mergedFollowUp = `【追问问题】${followUp.question}\n【追问回答】${followUpAnswer || '未作答'}`;
+            finalAnswer = String(finalAnswer ? `${finalAnswer}\n\n${mergedFollowUp}` : mergedFollowUp);
+        }
+        if (!finalAnswer.trim()) {
             hasBlank = true;
         }
-        answers[index] = answer;
+        payload[index] = finalAnswer;
     });
 
+    return { payload, hasBlank };
+}
+
+async function submitAnswers() {
+    saveCurrentInputs();
+    const { payload, hasBlank } = buildSubmitAnswersPayload();
     if (hasBlank && !confirm('存在未作答题目，确认提交吗？')) {
         return;
     }
 
-    const submitButton = document.querySelector('#buttonContainer button');
-    submitButton.disabled = true;
-    submitButton.textContent = '提交中...';
+    submitAllBtn.disabled = true;
+    submitAllBtn.textContent = '提交中...';
     updateStatus('正在提交答案...');
 
     try {
-        await streamPostSse(`/api/interview/${resumeId}/submit/stream`, answers, {
+        await streamPostSse(`/api/interview/${resumeId}/submit/stream`, payload, {
             onProgress: (data) => updateStatus(data?.message || '正在评估回答...'),
             onResult: () => updateStatus('评估已生成，正在跳转结果页...'),
             onError: (data) => { throw new Error(data?.message || '评估失败'); },
@@ -263,7 +408,7 @@ async function submitAnswers() {
             const response = await AuthClient.authFetch(`/api/interview/${resumeId}/submit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(answers)
+                body: JSON.stringify(payload)
             });
             if (!response.ok) {
                 throw new Error('提交失败');
@@ -273,11 +418,14 @@ async function submitAnswers() {
             alert(fallbackError.message || '提交失败，请重试');
         }
     } finally {
-        submitButton.disabled = false;
-        submitButton.textContent = '提交答案';
+        submitAllBtn.disabled = false;
+        submitAllBtn.textContent = '提交全部答案';
     }
 }
 
+prevQuestionBtn.addEventListener('click', goToPrevQuestion);
+nextQuestionBtn.addEventListener('click', goToNextQuestion);
+submitAllBtn.addEventListener('click', submitAnswers);
 document.addEventListener('DOMContentLoaded', loadQuestions);
 </script>
 </body>
