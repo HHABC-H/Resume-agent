@@ -29,9 +29,24 @@
         <router-link to="/resume/upload" class="btn btn-primary">上传简历开始分析</router-link>
       </div>
       <div v-else>
+        <!-- 标签页切换 -->
+        <div class="tabs">
+          <button 
+            :class="['tab-button', { active: activeTab === 'resume' }]"
+            @click="activeTab = 'resume'"
+          >
+            简历分析历史
+          </button>
+          <button 
+            :class="['tab-button', { active: activeTab === 'interview' }]"
+            @click="activeTab = 'interview'"
+          >
+            面试分析历史
+          </button>
+        </div>
+        
         <!-- 简历分析历史 -->
-        <section class="history-section">
-          <h2>简历分析历史</h2>
+        <div v-show="activeTab === 'resume'" class="tab-content">
           <div v-if="resumeAnalysisHistory.length === 0" class="empty-section">
             <p>暂无简历分析记录</p>
           </div>
@@ -43,7 +58,7 @@
                   <span :class="['status-badge', item.status.toLowerCase()]">{{ displayStatus(item.status) }}</span>
                 </div>
                 <div class="history-scores">
-                  <span v-if="item.resumeOverallScore">简历评分: {{ item.resumeOverallScore }}</span>
+                  <span v-if="item.resumeScore">简历评分: {{ item.resumeScore }}</span>
                 </div>
                 <div class="history-date">
                   {{ formatDate(item.updatedAt) }}
@@ -67,11 +82,10 @@
               </div>
             </div>
           </div>
-        </section>
+        </div>
         
         <!-- 面试分析历史 -->
-        <section class="history-section">
-          <h2>面试分析历史</h2>
+        <div v-show="activeTab === 'interview'" class="tab-content">
           <div v-if="interviewAnalysisHistory.length === 0" class="empty-section">
             <p>暂无面试分析记录</p>
           </div>
@@ -83,8 +97,8 @@
                   <span :class="['status-badge', item.status.toLowerCase()]">{{ displayStatus(item.status) }}</span>
                 </div>
                 <div class="history-scores">
-                  <span v-if="item.resumeOverallScore">简历评分: {{ item.resumeOverallScore }}</span>
-                  <span v-if="item.evaluationOverallScore">面试评分: {{ item.evaluationOverallScore }}</span>
+                  <span v-if="item.resumeScore">简历评分: {{ item.resumeScore }}</span>
+                  <span v-if="item.evaluationScore">面试评分: {{ item.evaluationScore }}</span>
                   <span v-if="item.questionCount">问题数: {{ item.questionCount }}</span>
                 </div>
                 <div class="history-date">
@@ -109,7 +123,7 @@
               </div>
             </div>
           </div>
-        </section>
+        </div>
       </div>
     </main>
   </div>
@@ -140,6 +154,8 @@ const resumeAnalysisHistory = computed(() => {
 })
 
 // 面试分析历史（已评估）
+const activeTab = ref('resume')
+
 const interviewAnalysisHistory = computed(() => {
   return history.value.filter(item => 
     item.status === 'EVALUATED'
@@ -271,16 +287,34 @@ onMounted(() => {
   color: #333;
 }
 
-.history-section {
-  margin-bottom: 3rem;
+.tabs {
+  display: flex;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid #e0e0e0;
 }
 
-.history-section h2 {
-  margin-bottom: 1.5rem;
-  color: #495057;
-  font-size: 1.25rem;
-  border-bottom: 1px solid #e0e0e0;
-  padding-bottom: 0.5rem;
+.tab-button {
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-button:hover {
+  color: #007bff;
+}
+
+.tab-button.active {
+  color: #007bff;
+  border-bottom-color: #007bff;
+  font-weight: 500;
+}
+
+.tab-content {
+  min-height: 300px;
 }
 
 .loading, .error-message, .empty-state {

@@ -1,6 +1,11 @@
 <template>
   <div class="interview-container">
-    <h2>模拟面试</h2>
+    <div class="header">
+      <button @click="goBack" class="btn btn-secondary">
+        返回
+      </button>
+      <h2>模拟面试</h2>
+    </div>
     <div v-if="loading" class="loading">
       生成问题中...
     </div>
@@ -26,6 +31,9 @@
       </div>
       
       <div class="actions">
+        <button @click="goBack" class="btn btn-secondary">
+          返回
+        </button>
         <button @click="submitAnswers" class="btn btn-primary">
           提交答案并评估
         </button>
@@ -85,6 +93,10 @@ const submitAnswers = async () => {
     loading.value = false
   }
 }
+
+const goBack = () => {
+  router.push('/history')
+}
 </script>
 
 <style scoped>
@@ -97,10 +109,26 @@ const submitAnswers = async () => {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-h2 {
-  text-align: center;
+.header {
+  display: flex;
+  align-items: center;
   margin-bottom: 2rem;
+}
+
+.header h2 {
+  flex: 1;
+  text-align: center;
+  margin: 0;
   color: #333;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
 }
 
 .questions-section {
