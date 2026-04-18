@@ -19,7 +19,7 @@ public class UserController {
 
     @PutMapping("/profile")
     public ResponseEntity<?> updateProfile(
-            @RequestAttribute Long currentUserId,
+            @RequestAttribute("CURRENT_USER_ID") Long currentUserId,
             @RequestBody Map<String, String> request) {
         try {
             String email = request.get("email");
