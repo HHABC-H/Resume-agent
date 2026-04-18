@@ -1,7 +1,7 @@
 package com.h.resumeagent.controller;
 
-import com.h.resumeagent.auth.AuthService;
-import com.h.resumeagent.persistence.entity.UserEntity;
+import com.h.resumeagent.service.AuthService;
+import com.h.resumeagent.common.entity.UserEntity;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
@@ -33,14 +33,12 @@ public class AuthController {
                     request.username(),
                     request.email(),
                     request.password(),
-                    request.displayName()
-            );
+                    request.displayName());
             return ResponseEntity.ok(Map.of(
                     "id", user.getId(),
                     "username", user.getUsername(),
                     "email", StringUtils.defaultString(user.getEmail()),
-                    "displayName", StringUtils.defaultString(user.getDisplayName())
-            ));
+                    "displayName", StringUtils.defaultString(user.getDisplayName())));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -54,8 +52,7 @@ public class AuthController {
                     "token", result.token(),
                     "expiresAt", result.expiresAt(),
                     "userId", result.user().id(),
-                    "username", result.user().username()
-            ));
+                    "username", result.user().username()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -84,8 +81,7 @@ public class AuthController {
                         "id", user.getId(),
                         "username", user.getUsername(),
                         "email", StringUtils.defaultString(user.getEmail()),
-                        "displayName", StringUtils.defaultString(user.getDisplayName())
-                )))
+                        "displayName", StringUtils.defaultString(user.getDisplayName()))))
                 .orElseGet(() -> ResponseEntity.status(401).body(Map.of("error", "用户不存在")));
     }
 

@@ -1,6 +1,6 @@
 package com.h.resumeagent.config;
 
-import com.h.resumeagent.auth.AuthTokenInterceptor;
+import com.h.resumeagent.interceptor.AuthTokenInterceptor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.AsyncTaskExecutor;
@@ -22,7 +22,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(authTokenInterceptor)
-                .addPathPatterns("/api/resume/**", "/api/interview/**")
+                .addPathPatterns("/api/resume/**", "/api/interview/**", "/api/user/**")
                 .excludePathPatterns("/api/auth/**");
     }
 

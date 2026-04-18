@@ -11,18 +11,18 @@ import com.h.resumeagent.common.dto.ResumeData;
 import com.h.resumeagent.common.dto.ResumeHistoryItem;
 import com.h.resumeagent.common.dto.ResumeScoreResult;
 import com.h.resumeagent.mapper.ResumeHistoryMapper;
-import com.h.resumeagent.persistence.entity.EvaluationCategoryScoreEntity;
-import com.h.resumeagent.persistence.entity.EvaluationImprovementEntity;
-import com.h.resumeagent.persistence.entity.EvaluationQuestionDetailEntity;
-import com.h.resumeagent.persistence.entity.EvaluationReferenceAnswerEntity;
-import com.h.resumeagent.persistence.entity.EvaluationReferenceKeyPointEntity;
-import com.h.resumeagent.persistence.entity.EvaluationStrengthEntity;
-import com.h.resumeagent.persistence.entity.InterviewQuestionEntity;
-import com.h.resumeagent.persistence.entity.ResumeSessionEntity;
-import com.h.resumeagent.persistence.entity.ResumeStatus;
-import com.h.resumeagent.persistence.entity.ResumeStrengthEntity;
-import com.h.resumeagent.persistence.entity.ResumeSuggestionEntity;
-import com.h.resumeagent.persistence.repository.ResumeSessionRepository;
+import com.h.resumeagent.common.entity.EvaluationCategoryScoreEntity;
+import com.h.resumeagent.common.entity.EvaluationImprovementEntity;
+import com.h.resumeagent.common.entity.EvaluationQuestionDetailEntity;
+import com.h.resumeagent.common.entity.EvaluationReferenceAnswerEntity;
+import com.h.resumeagent.common.entity.EvaluationReferenceKeyPointEntity;
+import com.h.resumeagent.common.entity.EvaluationStrengthEntity;
+import com.h.resumeagent.common.entity.InterviewQuestionEntity;
+import com.h.resumeagent.common.entity.ResumeSessionEntity;
+import com.h.resumeagent.common.entity.ResumeStatus;
+import com.h.resumeagent.common.entity.ResumeStrengthEntity;
+import com.h.resumeagent.common.entity.ResumeSuggestionEntity;
+import com.h.resumeagent.common.repository.ResumeSessionRepository;
 import com.h.resumeagent.service.MockInterviewService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -111,14 +111,17 @@ public class MockInterviewServiceImpl implements MockInterviewService {
     public ResumeScoreResult scoreResume(String resumeText) throws IOException {
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(resumeAnalysisSystemPromptResource));
-        PromptTemplate promptTemplate = new PromptTemplate(resumeAnalysisUserresource.getContentAsString(StandardCharsets.UTF_8));
+        PromptTemplate promptTemplate = new PromptTemplate(
+                resumeAnalysisUserresource.getContentAsString(StandardCharsets.UTF_8));
         messages.add(new UserMessage(promptTemplate.render(Map.of("resumeText", resumeText))));
         Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder().temperature(0.7).build());
-        String response = executeAiCallWithRetry("简历评分", () -> chatModel.call(prompt).getResult().getOutput().getText());
+        String response = executeAiCallWithRetry("简历评分",
+                () -> chatModel.call(prompt).getResult().getOutput().getText());
         return parseResumeScoreResult(response);
     }
 
-    public InterviewQuestions generateInterviewQuestions(String resumeText, String positionType) throws JsonProcessingException {
+    public InterviewQuestions generateInterviewQuestions(String resumeText, String positionType)
+            throws JsonProcessingException {
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(interviewQuestionsSystemPromptresource));
         String normalizedPositionType = normalizePositionType(positionType);
@@ -131,11 +134,11 @@ public class MockInterviewServiceImpl implements MockInterviewService {
                 """.formatted(
                 normalizedPositionType,
                 buildQuestionPositionContext(normalizedPositionType),
-                resumeText
-        );
+                resumeText);
         messages.add(new UserMessage(userPrompt));
         Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder().temperature(0.7).build());
-        String response = executeAiCallWithRetry("面试问题生成", () -> chatModel.call(prompt).getResult().getOutput().getText());
+        String response = executeAiCallWithRetry("面试问题生成",
+                () -> chatModel.call(prompt).getResult().getOutput().getText());
         return parseInterviewQuestions(response);
     }
 
@@ -170,11 +173,11 @@ public class MockInterviewServiceImpl implements MockInterviewService {
                 buildEvaluationPositionContext(normalizedPositionType),
                 StringUtils.defaultIfBlank(resumeText, "简历内容为空"),
                 question.getQuestion(),
-                answer
-        )));
+                answer)));
 
         Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder().temperature(0.4).build());
-        String response = executeAiCallWithRetry("面试追问生成", () -> chatModel.call(prompt).getResult().getOutput().getText());
+        String response = executeAiCallWithRetry("面试追问生成",
+                () -> chatModel.call(prompt).getResult().getOutput().getText());
         return parseFollowUpQuestion(response);
     }
 
@@ -202,10 +205,10 @@ public class MockInterviewServiceImpl implements MockInterviewService {
                 """.formatted(
                 normalizedPositionType,
                 buildEvaluationPositionContext(normalizedPositionType),
-                qaText
-        )));
+                qaText)));
         Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder().temperature(0.7).build());
-        String response = executeAiCallWithRetry("面试答案评估", () -> chatModel.call(prompt).getResult().getOutput().getText());
+        String response = executeAiCallWithRetry("面试答案评估",
+                () -> chatModel.call(prompt).getResult().getOutput().getText());
         return parseInterviewEvaluation(response);
     }
 
@@ -228,13 +231,15 @@ public class MockInterviewServiceImpl implements MockInterviewService {
         if (!isPersistenceEnabled()) {
             LocalDateTime now = LocalDateTime.now();
             resumeStorage.put(resumeId, ResumeData.builder()
-                    .resumeId(resumeId).resumeText(resumeText).positionType(normalizedPositionType).scoreResult(scoreResult)
+                    .resumeId(resumeId).resumeText(resumeText).positionType(normalizedPositionType)
+                    .scoreResult(scoreResult)
                     .status(STATUS_ANALYZED).createdAt(now).updatedAt(now).build());
             return;
         }
 
         LocalDateTime now = LocalDateTime.now();
-        ResumeSessionEntity session = resumeSessionRepository.findByResumeId(resumeId).orElseGet(ResumeSessionEntity::new);
+        ResumeSessionEntity session = resumeSessionRepository.findByResumeId(resumeId)
+                .orElseGet(ResumeSessionEntity::new);
         ensureCollections(session);
         if (session.getCreatedAt() == null) {
             session.setCreatedAt(now);
@@ -347,7 +352,8 @@ public class MockInterviewServiceImpl implements MockInterviewService {
         int safeLimit = Math.max(1, Math.min(limit, 100));
         if (!isPersistenceEnabled()) {
             return resumeStorage.values().stream()
-                    .sorted(Comparator.comparing(ResumeData::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                    .sorted(Comparator.comparing(ResumeData::getUpdatedAt,
+                            Comparator.nullsLast(Comparator.reverseOrder())))
                     .limit(safeLimit)
                     .map(this::toHistoryItem)
                     .collect(Collectors.toList());
@@ -381,19 +387,28 @@ public class MockInterviewServiceImpl implements MockInterviewService {
     }
 
     private void ensureCollections(ResumeSessionEntity s) {
-        if (s.getResumeStrengths() == null) s.setResumeStrengths(new ArrayList<>());
-        if (s.getResumeSuggestions() == null) s.setResumeSuggestions(new ArrayList<>());
-        if (s.getInterviewQuestions() == null) s.setInterviewQuestions(new ArrayList<>());
-        if (s.getEvaluationCategoryScores() == null) s.setEvaluationCategoryScores(new ArrayList<>());
-        if (s.getEvaluationQuestionDetails() == null) s.setEvaluationQuestionDetails(new ArrayList<>());
-        if (s.getEvaluationStrengths() == null) s.setEvaluationStrengths(new ArrayList<>());
-        if (s.getEvaluationImprovements() == null) s.setEvaluationImprovements(new ArrayList<>());
-        if (s.getEvaluationReferenceAnswers() == null) s.setEvaluationReferenceAnswers(new ArrayList<>());
+        if (s.getResumeStrengths() == null)
+            s.setResumeStrengths(new ArrayList<>());
+        if (s.getResumeSuggestions() == null)
+            s.setResumeSuggestions(new ArrayList<>());
+        if (s.getInterviewQuestions() == null)
+            s.setInterviewQuestions(new ArrayList<>());
+        if (s.getEvaluationCategoryScores() == null)
+            s.setEvaluationCategoryScores(new ArrayList<>());
+        if (s.getEvaluationQuestionDetails() == null)
+            s.setEvaluationQuestionDetails(new ArrayList<>());
+        if (s.getEvaluationStrengths() == null)
+            s.setEvaluationStrengths(new ArrayList<>());
+        if (s.getEvaluationImprovements() == null)
+            s.setEvaluationImprovements(new ArrayList<>());
+        if (s.getEvaluationReferenceAnswers() == null)
+            s.setEvaluationReferenceAnswers(new ArrayList<>());
     }
 
     private void replaceResumeStrengths(ResumeSessionEntity s, List<String> strengths) {
         s.getResumeStrengths().clear();
-        if (strengths == null) return;
+        if (strengths == null)
+            return;
         for (int i = 0; i < strengths.size(); i++) {
             ResumeStrengthEntity e = new ResumeStrengthEntity();
             e.setResumeSession(s);
@@ -405,7 +420,8 @@ public class MockInterviewServiceImpl implements MockInterviewService {
 
     private void replaceResumeSuggestions(ResumeSessionEntity s, List<ResumeScoreResult.Suggestion> suggestions) {
         s.getResumeSuggestions().clear();
-        if (suggestions == null) return;
+        if (suggestions == null)
+            return;
         for (int i = 0; i < suggestions.size(); i++) {
             ResumeScoreResult.Suggestion it = suggestions.get(i);
             ResumeSuggestionEntity e = new ResumeSuggestionEntity();
@@ -421,7 +437,8 @@ public class MockInterviewServiceImpl implements MockInterviewService {
 
     private void replaceInterviewQuestions(ResumeSessionEntity s, List<InterviewQuestions.Question> questions) {
         s.getInterviewQuestions().clear();
-        if (questions == null) return;
+        if (questions == null)
+            return;
         for (int i = 0; i < questions.size(); i++) {
             InterviewQuestions.Question it = questions.get(i);
             InterviewQuestionEntity e = new InterviewQuestionEntity();
@@ -436,7 +453,8 @@ public class MockInterviewServiceImpl implements MockInterviewService {
 
     private void replaceEvalCategory(ResumeSessionEntity s, List<InterviewEvaluation.CategoryScore> list) {
         s.getEvaluationCategoryScores().clear();
-        if (list == null) return;
+        if (list == null)
+            return;
         for (int i = 0; i < list.size(); i++) {
             InterviewEvaluation.CategoryScore it = list.get(i);
             EvaluationCategoryScoreEntity e = new EvaluationCategoryScoreEntity();
@@ -451,7 +469,8 @@ public class MockInterviewServiceImpl implements MockInterviewService {
 
     private void replaceEvalDetail(ResumeSessionEntity s, List<InterviewEvaluation.QuestionDetail> list) {
         s.getEvaluationQuestionDetails().clear();
-        if (list == null) return;
+        if (list == null)
+            return;
         for (InterviewEvaluation.QuestionDetail it : list) {
             EvaluationQuestionDetailEntity e = new EvaluationQuestionDetailEntity();
             e.setResumeSession(s);
@@ -467,7 +486,8 @@ public class MockInterviewServiceImpl implements MockInterviewService {
 
     private void replaceEvalStrength(ResumeSessionEntity s, List<String> list) {
         s.getEvaluationStrengths().clear();
-        if (list == null) return;
+        if (list == null)
+            return;
         for (int i = 0; i < list.size(); i++) {
             EvaluationStrengthEntity e = new EvaluationStrengthEntity();
             e.setResumeSession(s);
@@ -479,7 +499,8 @@ public class MockInterviewServiceImpl implements MockInterviewService {
 
     private void replaceEvalImprovement(ResumeSessionEntity s, List<String> list) {
         s.getEvaluationImprovements().clear();
-        if (list == null) return;
+        if (list == null)
+            return;
         for (int i = 0; i < list.size(); i++) {
             EvaluationImprovementEntity e = new EvaluationImprovementEntity();
             e.setResumeSession(s);
@@ -491,7 +512,8 @@ public class MockInterviewServiceImpl implements MockInterviewService {
 
     private void replaceEvalReference(ResumeSessionEntity s, List<InterviewEvaluation.ReferenceAnswer> list) {
         s.getEvaluationReferenceAnswers().clear();
-        if (list == null) return;
+        if (list == null)
+            return;
         for (int i = 0; i < list.size(); i++) {
             InterviewEvaluation.ReferenceAnswer it = list.get(i);
             EvaluationReferenceAnswerEntity e = new EvaluationReferenceAnswerEntity();
@@ -518,14 +540,18 @@ public class MockInterviewServiceImpl implements MockInterviewService {
         ResumeScoreResult score = ResumeScoreResult.builder()
                 .overallScore(s.getResumeOverallScore())
                 .scoreDetail(new ResumeScoreResult.ScoreDetail(
-                        s.getScoreProject(), s.getScoreSkillMatch(), s.getScoreContent(), s.getScoreStructure(), s.getScoreExpression()))
+                        s.getScoreProject(), s.getScoreSkillMatch(), s.getScoreContent(), s.getScoreStructure(),
+                        s.getScoreExpression()))
                 .summary(s.getResumeSummary())
                 .strengths(Optional.ofNullable(s.getResumeStrengths()).orElse(List.of()).stream()
-                        .sorted(Comparator.comparing(ResumeStrengthEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
+                        .sorted(Comparator.comparing(ResumeStrengthEntity::getSortOrder,
+                                Comparator.nullsLast(Integer::compareTo)))
                         .map(ResumeStrengthEntity::getStrengthText).collect(Collectors.toList()))
                 .suggestions(Optional.ofNullable(s.getResumeSuggestions()).orElse(List.of()).stream()
-                        .sorted(Comparator.comparing(ResumeSuggestionEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
-                        .map(it -> new ResumeScoreResult.Suggestion(it.getCategory(), it.getPriorityLevel(), it.getIssueText(), it.getRecommendation()))
+                        .sorted(Comparator.comparing(ResumeSuggestionEntity::getSortOrder,
+                                Comparator.nullsLast(Integer::compareTo)))
+                        .map(it -> new ResumeScoreResult.Suggestion(it.getCategory(), it.getPriorityLevel(),
+                                it.getIssueText(), it.getRecommendation()))
                         .collect(Collectors.toList()))
                 .build();
 
@@ -533,40 +559,54 @@ public class MockInterviewServiceImpl implements MockInterviewService {
         if (!Optional.ofNullable(s.getInterviewQuestions()).orElse(List.of()).isEmpty()) {
             questions = InterviewQuestions.builder()
                     .questions(s.getInterviewQuestions().stream()
-                            .sorted(Comparator.comparing(InterviewQuestionEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
-                            .map(it -> new InterviewQuestions.Question(it.getQuestionText(), it.getQuestionType(), it.getCategory()))
+                            .sorted(Comparator.comparing(InterviewQuestionEntity::getSortOrder,
+                                    Comparator.nullsLast(Integer::compareTo)))
+                            .map(it -> new InterviewQuestions.Question(it.getQuestionText(), it.getQuestionType(),
+                                    it.getCategory()))
                             .collect(Collectors.toList()))
                     .build();
         }
 
         InterviewEvaluation eval = null;
-        if (s.getEvaluationOverallScore() != null || !Optional.ofNullable(s.getEvaluationQuestionDetails()).orElse(List.of()).isEmpty()) {
+        if (s.getEvaluationOverallScore() != null
+                || !Optional.ofNullable(s.getEvaluationQuestionDetails()).orElse(List.of()).isEmpty()) {
             eval = InterviewEvaluation.builder()
                     .sessionId(s.getEvaluationSessionId())
                     .totalQuestions(s.getEvaluationTotalQuestions())
                     .overallScore(s.getEvaluationOverallScore())
                     .overallFeedback(s.getEvaluationOverallFeedback())
                     .categoryScores(Optional.ofNullable(s.getEvaluationCategoryScores()).orElse(List.of()).stream()
-                            .sorted(Comparator.comparing(EvaluationCategoryScoreEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
-                            .map(it -> new InterviewEvaluation.CategoryScore(it.getCategory(), it.getScore(), it.getQuestionCount()))
+                            .sorted(Comparator.comparing(EvaluationCategoryScoreEntity::getSortOrder,
+                                    Comparator.nullsLast(Integer::compareTo)))
+                            .map(it -> new InterviewEvaluation.CategoryScore(it.getCategory(), it.getScore(),
+                                    it.getQuestionCount()))
                             .collect(Collectors.toList()))
                     .questionDetails(Optional.ofNullable(s.getEvaluationQuestionDetails()).orElse(List.of()).stream()
-                            .sorted(Comparator.comparing(EvaluationQuestionDetailEntity::getQuestionIndex, Comparator.nullsLast(Integer::compareTo)))
-                            .map(it -> new InterviewEvaluation.QuestionDetail(it.getQuestionIndex(), it.getQuestionText(), it.getCategory(), it.getUserAnswer(), it.getScore(), it.getFeedback()))
+                            .sorted(Comparator.comparing(EvaluationQuestionDetailEntity::getQuestionIndex,
+                                    Comparator.nullsLast(Integer::compareTo)))
+                            .map(it -> new InterviewEvaluation.QuestionDetail(it.getQuestionIndex(),
+                                    it.getQuestionText(), it.getCategory(), it.getUserAnswer(), it.getScore(),
+                                    it.getFeedback()))
                             .collect(Collectors.toList()))
                     .strengths(Optional.ofNullable(s.getEvaluationStrengths()).orElse(List.of()).stream()
-                            .sorted(Comparator.comparing(EvaluationStrengthEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
+                            .sorted(Comparator.comparing(EvaluationStrengthEntity::getSortOrder,
+                                    Comparator.nullsLast(Integer::compareTo)))
                             .map(EvaluationStrengthEntity::getStrengthText).collect(Collectors.toList()))
                     .improvements(Optional.ofNullable(s.getEvaluationImprovements()).orElse(List.of()).stream()
-                            .sorted(Comparator.comparing(EvaluationImprovementEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
+                            .sorted(Comparator.comparing(EvaluationImprovementEntity::getSortOrder,
+                                    Comparator.nullsLast(Integer::compareTo)))
                             .map(EvaluationImprovementEntity::getImprovementText).collect(Collectors.toList()))
                     .referenceAnswers(Optional.ofNullable(s.getEvaluationReferenceAnswers()).orElse(List.of()).stream()
-                            .sorted(Comparator.comparing(EvaluationReferenceAnswerEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
+                            .sorted(Comparator.comparing(EvaluationReferenceAnswerEntity::getSortOrder,
+                                    Comparator.nullsLast(Integer::compareTo)))
                             .map(it -> new InterviewEvaluation.ReferenceAnswer(
                                     it.getQuestionIndex(), it.getQuestionText(), it.getReferenceAnswer(),
                                     Optional.ofNullable(it.getKeyPoints()).orElse(List.of()).stream()
-                                            .sorted(Comparator.comparing(EvaluationReferenceKeyPointEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
-                                            .map(EvaluationReferenceKeyPointEntity::getKeyPoint).collect(Collectors.toList())))
+                                            .sorted(Comparator.comparing(
+                                                    EvaluationReferenceKeyPointEntity::getSortOrder,
+                                                    Comparator.nullsLast(Integer::compareTo)))
+                                            .map(EvaluationReferenceKeyPointEntity::getKeyPoint)
+                                            .collect(Collectors.toList())))
                             .collect(Collectors.toList()))
                     .build();
         }
@@ -585,7 +625,8 @@ public class MockInterviewServiceImpl implements MockInterviewService {
     }
 
     private ResumeHistoryItem toHistoryItem(ResumeData d) {
-        int questionCount = d.getQuestions() == null || d.getQuestions().getQuestions() == null ? 0 : d.getQuestions().getQuestions().size();
+        int questionCount = d.getQuestions() == null || d.getQuestions().getQuestions() == null ? 0
+                : d.getQuestions().getQuestions().size();
         Integer evalScore = d.getEvaluation() == null ? null : d.getEvaluation().getOverallScore();
         Integer resumeScore = d.getScoreResult() == null ? null : d.getScoreResult().getOverallScore();
         return ResumeHistoryItem.builder()
@@ -644,22 +685,22 @@ public class MockInterviewServiceImpl implements MockInterviewService {
     private String buildQuestionPositionContext(String normalizedPositionType) {
         return switch (normalizedPositionType) {
             case POSITION_FRONTEND ->
-                    "聚焦 HTML/CSS/JavaScript/TypeScript、Vue/React、浏览器渲染机制、性能优化、前端工程化与调试。";
+                "聚焦 HTML/CSS/JavaScript/TypeScript、Vue/React、浏览器渲染机制、性能优化、前端工程化与调试。";
             case POSITION_ALGORITHM ->
-                    "聚焦数据结构、算法设计、复杂度分析、边界条件处理、代码正确性与优化思路。";
+                "聚焦数据结构、算法设计、复杂度分析、边界条件处理、代码正确性与优化思路。";
             default ->
-                    "聚焦 Java 后端基础、并发、JVM、数据库、缓存、Spring 生态、系统设计与性能优化。";
+                "聚焦 Java 后端基础、并发、JVM、数据库、缓存、Spring 生态、系统设计与性能优化。";
         };
     }
 
     private String buildEvaluationPositionContext(String normalizedPositionType) {
         return switch (normalizedPositionType) {
             case POSITION_FRONTEND ->
-                    "重点看前端技术深度、工程化实践、性能与兼容性处理能力、问题定位与用户体验意识。";
+                "重点看前端技术深度、工程化实践、性能与兼容性处理能力、问题定位与用户体验意识。";
             case POSITION_ALGORITHM ->
-                    "重点看建模能力、算法正确性、复杂度控制、边界分析、表达清晰度和可实现性。";
+                "重点看建模能力、算法正确性、复杂度控制、边界分析、表达清晰度和可实现性。";
             default ->
-                    "重点看后端技术深度、系统设计思维、性能与稳定性意识、工程实践与表达完整性。";
+                "重点看后端技术深度、系统设计思维、性能与稳定性意识、工程实践与表达完整性。";
         };
     }
 
@@ -672,15 +713,21 @@ public class MockInterviewServiceImpl implements MockInterviewService {
             ResumeScoreResult.ScoreDetail scoreDetail = new ResumeScoreResult.ScoreDetail();
             if (rootNode.has("scoreDetail")) {
                 JsonNode detailNode = rootNode.get("scoreDetail");
-                scoreDetail.setProjectScore(detailNode.has("projectScore") ? detailNode.get("projectScore").asInt() : 0);
-                scoreDetail.setSkillMatchScore(detailNode.has("skillMatchScore") ? detailNode.get("skillMatchScore").asInt() : 0);
-                scoreDetail.setContentScore(detailNode.has("contentScore") ? detailNode.get("contentScore").asInt() : 0);
-                scoreDetail.setStructureScore(detailNode.has("structureScore") ? detailNode.get("structureScore").asInt() : 0);
-                scoreDetail.setExpressionScore(detailNode.has("expressionScore") ? detailNode.get("expressionScore").asInt() : 0);
+                scoreDetail
+                        .setProjectScore(detailNode.has("projectScore") ? detailNode.get("projectScore").asInt() : 0);
+                scoreDetail.setSkillMatchScore(
+                        detailNode.has("skillMatchScore") ? detailNode.get("skillMatchScore").asInt() : 0);
+                scoreDetail
+                        .setContentScore(detailNode.has("contentScore") ? detailNode.get("contentScore").asInt() : 0);
+                scoreDetail.setStructureScore(
+                        detailNode.has("structureScore") ? detailNode.get("structureScore").asInt() : 0);
+                scoreDetail.setExpressionScore(
+                        detailNode.has("expressionScore") ? detailNode.get("expressionScore").asInt() : 0);
             }
             List<String> strengths = new ArrayList<>();
             if (rootNode.has("strengths") && rootNode.get("strengths").isArray()) {
-                for (JsonNode item : rootNode.get("strengths")) strengths.add(item.asText());
+                for (JsonNode item : rootNode.get("strengths"))
+                    strengths.add(item.asText());
             }
             List<ResumeScoreResult.Suggestion> suggestions = new ArrayList<>();
             if (rootNode.has("suggestions") && rootNode.get("suggestions").isArray()) {
@@ -736,8 +783,7 @@ public class MockInterviewServiceImpl implements MockInterviewService {
                         rootNode.path("followUpQuestion").asText(null),
                         rootNode.path("question").asText(null),
                         rootNode.path("followup").asText(null),
-                        rootNode.path("nextQuestion").asText(null)
-                );
+                        rootNode.path("nextQuestion").asText(null));
             } else if (rootNode.isTextual()) {
                 followUpQuestion = rootNode.asText();
             }
@@ -759,7 +805,8 @@ public class MockInterviewServiceImpl implements MockInterviewService {
         try {
             JsonNode rootNode = objectMapper.readTree(json);
             InterviewEvaluation.InterviewEvaluationBuilder builder = InterviewEvaluation.builder();
-            builder.sessionId(rootNode.has("sessionId") ? rootNode.get("sessionId").asText() : UUID.randomUUID().toString());
+            builder.sessionId(
+                    rootNode.has("sessionId") ? rootNode.get("sessionId").asText() : UUID.randomUUID().toString());
             builder.totalQuestions(rootNode.has("totalQuestions") ? rootNode.get("totalQuestions").asInt() : 0);
             builder.overallScore(rootNode.has("overallScore") ? rootNode.get("overallScore").asInt() : 0);
             builder.overallFeedback(rootNode.has("overallFeedback") ? rootNode.get("overallFeedback").asText() : "");
@@ -790,12 +837,14 @@ public class MockInterviewServiceImpl implements MockInterviewService {
             builder.questionDetails(questionDetails);
             List<String> strengths = new ArrayList<>();
             if (rootNode.has("strengths") && rootNode.get("strengths").isArray()) {
-                for (JsonNode item : rootNode.get("strengths")) strengths.add(item.asText());
+                for (JsonNode item : rootNode.get("strengths"))
+                    strengths.add(item.asText());
             }
             builder.strengths(strengths);
             List<String> improvements = new ArrayList<>();
             if (rootNode.has("improvements") && rootNode.get("improvements").isArray()) {
-                for (JsonNode item : rootNode.get("improvements")) improvements.add(item.asText());
+                for (JsonNode item : rootNode.get("improvements"))
+                    improvements.add(item.asText());
             }
             builder.improvements(improvements);
             List<InterviewEvaluation.ReferenceAnswer> referenceAnswers = new ArrayList<>();
@@ -807,7 +856,8 @@ public class MockInterviewServiceImpl implements MockInterviewService {
                     answer.setReferenceAnswer(item.has("referenceAnswer") ? item.get("referenceAnswer").asText() : "");
                     List<String> keyPoints = new ArrayList<>();
                     if (item.has("keyPoints") && item.get("keyPoints").isArray()) {
-                        for (JsonNode point : item.get("keyPoints")) keyPoints.add(point.asText());
+                        for (JsonNode point : item.get("keyPoints"))
+                            keyPoints.add(point.asText());
                     }
                     answer.setKeyPoints(keyPoints);
                     referenceAnswers.add(answer);
@@ -822,9 +872,12 @@ public class MockInterviewServiceImpl implements MockInterviewService {
     }
 
     private String cleanJsonResponse(String json) {
-        if (json.startsWith("```json")) json = json.substring(7);
-        else if (json.startsWith("```")) json = json.substring(3);
-        if (json.endsWith("```")) json = json.substring(0, json.length() - 3);
+        if (json.startsWith("```json"))
+            json = json.substring(7);
+        else if (json.startsWith("```"))
+            json = json.substring(3);
+        if (json.endsWith("```"))
+            json = json.substring(0, json.length() - 3);
         return json.trim();
     }
 
