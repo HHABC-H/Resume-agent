@@ -8,33 +8,63 @@
       {{ error }}
     </div>
     <div v-else-if="analysis" class="analysis-content">
-      <div class="score-section">
-        <h3>综合评分</h3>
-        <div class="score-value">{{ analysis.totalScore }}</div>
-        <div class="score-breakdown">
-          <div v-for="(score, category) in analysis.scores" :key="category" class="score-item">
-            <span>{{ category }}:</span>
-            <span>{{ score }}</span>
+      <div class="main-layout">
+        <div class="resume-section">
+          <h3>简历内容</h3>
+          <div class="resume-content">
+            {{ resumeText }}
           </div>
         </div>
-      </div>
-      
-      <div class="strengths-section">
-        <h3>优势</h3>
-        <ul>
-          <li v-for="(strength, index) in analysis.strengths" :key="index">
-            {{ strength }}
-          </li>
-        </ul>
-      </div>
-      
-      <div class="suggestions-section">
-        <h3>改进建议</h3>
-        <ul>
-          <li v-for="(suggestion, index) in analysis.suggestions" :key="index">
-            {{ suggestion }}
-          </li>
-        </ul>
+        <div class="analysis-section">
+          <div class="score-section">
+            <h3>综合评分</h3>
+            <div class="score-value">{{ analysis.overallScore }}</div>
+            <div class="score-breakdown">
+              <div class="score-item">
+                <span>项目评分:</span>
+                <span>{{ analysis.scoreDetail.projectScore }}</span>
+              </div>
+              <div class="score-item">
+                <span>技能匹配:</span>
+                <span>{{ analysis.scoreDetail.skillMatchScore }}</span>
+              </div>
+              <div class="score-item">
+                <span>内容质量:</span>
+                <span>{{ analysis.scoreDetail.contentScore }}</span>
+              </div>
+              <div class="score-item">
+                <span>结构评分:</span>
+                <span>{{ analysis.scoreDetail.structureScore }}</span>
+              </div>
+              <div class="score-item">
+                <span>表达评分:</span>
+                <span>{{ analysis.scoreDetail.expressionScore }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="strengths-section">
+            <h3>优势</h3>
+            <ul>
+              <li v-for="(strength, index) in analysis.strengths" :key="index">
+                {{ strength }}
+              </li>
+            </ul>
+          </div>
+          
+          <div class="suggestions-section">
+            <h3>改进建议</h3>
+            <ul>
+              <li v-for="(suggestion, index) in analysis.suggestions" :key="index">
+                <div class="suggestion-item">
+                  <div class="suggestion-category">{{ suggestion.category }} - {{ suggestion.priority }}</div>
+                  <div class="suggestion-issue">{{ suggestion.issue }}</div>
+                  <div class="suggestion-recommendation">{{ suggestion.recommendation }}</div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
       
       <div class="actions">
@@ -59,6 +89,9 @@ const route = useRoute()
 const loading = ref(true)
 const error = ref('')
 const analysis = ref<any>(null)
+const resumeText = ref('')
+
+const token = localStorage.getItem('token')
 
 const resumeId = computed(() => route.params.resumeId as string)
 
@@ -68,8 +101,13 @@ onMounted(async () => {
 
 const loadAnalysis = async () => {
   try {
-    const response = await axios.get(`/api/resume/analysis/${resumeId.value}`)
+    const response = await axios.get(`/api/resume/analysis/${resumeId.value}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
     analysis.value = response.data.scoreResult
+    resumeText.value = response.data.resumeText
   } catch (err: any) {
     error.value = err.response?.data?.error || '加载分析结果失败'
   } finally {
@@ -88,7 +126,7 @@ const goBack = () => {
 
 <style scoped>
 .analysis-container {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 2rem auto;
   padding: 2rem;
   background: white;
@@ -100,6 +138,43 @@ h2 {
   text-align: center;
   margin-bottom: 2rem;
   color: #333;
+}
+
+.main-layout {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.resume-section {
+  flex: 1;
+  min-width: 400px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.resume-section h3 {
+  margin: 0;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+  color: #495057;
+}
+
+.resume-content {
+  padding: 1rem;
+  max-height: 600px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  line-height: 1.6;
+  font-family: 'Courier New', Courier, monospace;
+  background-color: #fafafa;
+}
+
+.analysis-section {
+  flex: 1;
+  min-width: 400px;
 }
 
 .score-section {
@@ -130,7 +205,7 @@ h2 {
   padding: 0.5rem;
   background-color: white;
   border-radius: 4px;
-  flex: 1 1 200px;
+  flex: 1 1 150px;
 }
 
 .strengths-section,
@@ -144,13 +219,35 @@ h3 {
 }
 
 ul {
-  list-style-type: disc;
-  padding-left: 1.5rem;
+  list-style-type: none;
+  padding: 0;
 }
 
 li {
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
   line-height: 1.5;
+}
+
+.suggestion-item {
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #007bff;
+}
+
+.suggestion-category {
+  font-weight: bold;
+  color: #007bff;
+  margin-bottom: 0.5rem;
+}
+
+.suggestion-issue {
+  margin-bottom: 0.5rem;
+  color: #dc3545;
+}
+
+.suggestion-recommendation {
+  color: #28a745;
 }
 
 .actions {
@@ -198,5 +295,17 @@ button {
   color: #721c24;
   border-radius: 4px;
   margin-top: 1rem;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .main-layout {
+    flex-direction: column;
+  }
+  
+  .resume-section,
+  .analysis-section {
+    min-width: 100%;
+  }
 }
 </style>

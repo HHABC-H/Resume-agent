@@ -175,7 +175,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private AuthenticatedUser toAuthenticatedUser(UserEntity user) {
-        return new AuthenticatedUser(user.getId(), user.getUsername());
+        return new AuthenticatedUser(user.getId(), user.getUsername(), user.getRole());
     }
 
     private String sha256(String raw) {

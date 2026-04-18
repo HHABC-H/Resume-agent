@@ -124,6 +124,7 @@ public class ResumeController {
         
         return ResponseEntity.ok(Map.of(
             "resumeId", resumeId,
+            "resumeText", resumeData.getResumeText(),
             "scoreResult", resumeData.getScoreResult()
         ));
     }
