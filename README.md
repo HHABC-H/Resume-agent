@@ -1,4 +1,4 @@
-<h1 align="center">徐庶模拟面试器</h1>
+<h1 align="center">模拟面试器</h1>
   <p align="center"> 
 </p>
 一个基于 AI 的智能模拟面试系统，提供简历评分、个性化面试问题生成和答案评估功能。
