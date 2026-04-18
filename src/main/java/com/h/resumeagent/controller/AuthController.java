@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/auth")
 public class AuthController {
     private static final String TOKEN_COOKIE_NAME = "RA_TOKEN";
 
