@@ -110,7 +110,7 @@ public class MockInterviewServiceImpl implements MockInterviewService {
 
     public ResumeScoreResult scoreResume(String resumeText) throws IOException {
         List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(resumeAnalysisSystemPromptResource));
+        messages.add(new SystemMessage(resumeAnalysisSystemPromptResource.getContentAsString(StandardCharsets.UTF_8)));
         PromptTemplate promptTemplate = new PromptTemplate(
                 resumeAnalysisUserresource.getContentAsString(StandardCharsets.UTF_8));
         messages.add(new UserMessage(promptTemplate.render(Map.of("resumeText", resumeText))));
@@ -123,7 +123,11 @@ public class MockInterviewServiceImpl implements MockInterviewService {
     public InterviewQuestions generateInterviewQuestions(String resumeText, String positionType)
             throws JsonProcessingException {
         List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(interviewQuestionsSystemPromptresource));
+        try {
+            messages.add(new SystemMessage(interviewQuestionsSystemPromptresource.getContentAsString(StandardCharsets.UTF_8)));
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read interview questions system prompt", e);
+        }
         String normalizedPositionType = normalizePositionType(positionType);
         String userPrompt = """
                 请根据以下简历内容生成面试问题：
@@ -156,7 +160,11 @@ public class MockInterviewServiceImpl implements MockInterviewService {
 
         String normalizedPositionType = normalizePositionType(positionType);
         List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(interviewFollowupSystemPromptResource));
+        try {
+            messages.add(new SystemMessage(interviewFollowupSystemPromptResource.getContentAsString(StandardCharsets.UTF_8)));
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read interview followup system prompt", e);
+        }
         messages.add(new UserMessage("""
                 目标岗位：%s
                 岗位侧重点：%s
@@ -188,7 +196,11 @@ public class MockInterviewServiceImpl implements MockInterviewService {
             Map<Integer, String> answers)
             throws JsonProcessingException {
         List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(interviewEvaluationSystemPromptresource));
+        try {
+            messages.add(new SystemMessage(interviewEvaluationSystemPromptresource.getContentAsString(StandardCharsets.UTF_8)));
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read interview evaluation system prompt", e);
+        }
         String normalizedPositionType = normalizePositionType(positionType);
         StringBuilder qaText = new StringBuilder();
         for (int i = 0; i < questions.getQuestions().size(); i++) {
