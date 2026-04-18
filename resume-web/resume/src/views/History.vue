@@ -20,47 +20,96 @@
     </header>
 
     <main class="main-content">
-      <h1>面试历史</h1>
+      <h1>历史记录</h1>
       
       <div v-if="loading" class="loading">加载中...</div>
       <div v-else-if="error" class="error-message">{{ error }}</div>
       <div v-else-if="history.length === 0" class="empty-state">
-        <p>暂无面试记录</p>
-        <router-link to="/resume/upload" class="btn btn-primary">上传简历开始面试</router-link>
+        <p>暂无历史记录</p>
+        <router-link to="/resume/upload" class="btn btn-primary">上传简历开始分析</router-link>
       </div>
-      <div v-else class="history-list">
-        <div v-for="item in history" :key="item.resumeId" class="history-item">
-          <div class="history-info">
-            <div class="history-header">
-              <span class="position-type">{{ displayPositionType(item.positionType) }}</span>
-              <span :class="['status-badge', item.status.toLowerCase()]">{{ displayStatus(item.status) }}</span>
-            </div>
-            <div class="history-scores">
-              <span v-if="item.resumeOverallScore">简历评分: {{ item.resumeOverallScore }}</span>
-              <span v-if="item.evaluationOverallScore">面试评分: {{ item.evaluationOverallScore }}</span>
-              <span v-if="item.questionCount">问题数: {{ item.questionCount }}</span>
-            </div>
-            <div class="history-date">
-              {{ formatDate(item.updatedAt) }}
+      <div v-else>
+        <!-- 简历分析历史 -->
+        <section class="history-section">
+          <h2>简历分析历史</h2>
+          <div v-if="resumeAnalysisHistory.length === 0" class="empty-section">
+            <p>暂无简历分析记录</p>
+          </div>
+          <div v-else class="history-list">
+            <div v-for="item in resumeAnalysisHistory" :key="item.resumeId" class="history-item">
+              <div class="history-info">
+                <div class="history-header">
+                  <span class="position-type">{{ displayPositionType(item.positionType) }}</span>
+                  <span :class="['status-badge', item.status.toLowerCase()]">{{ displayStatus(item.status) }}</span>
+                </div>
+                <div class="history-scores">
+                  <span v-if="item.resumeOverallScore">简历评分: {{ item.resumeOverallScore }}</span>
+                </div>
+                <div class="history-date">
+                  {{ formatDate(item.updatedAt) }}
+                </div>
+              </div>
+              <div class="history-actions">
+                <router-link 
+                  v-if="item.status === 'ANALYZED'"
+                  :to="`/resume/analysis/${item.resumeId}`" 
+                  class="btn btn-secondary"
+                >
+                  查看分析
+                </router-link>
+                <router-link 
+                  v-if="item.status === 'ANALYZED' || item.status === 'QUESTIONS_READY'"
+                  :to="`/interview/${item.resumeId}`" 
+                  class="btn btn-primary"
+                >
+                  开始面试
+                </router-link>
+              </div>
             </div>
           </div>
-          <div class="history-actions">
-            <router-link 
-              v-if="item.status === 'ANALYZED' || item.status === 'QUESTIONS_READY'"
-              :to="`/interview/${item.resumeId}`" 
-              class="btn btn-primary"
-            >
-              继续面试
-            </router-link>
-            <router-link 
-              v-if="item.status === 'EVALUATED'"
-              :to="`/interview/result/${item.resumeId}`" 
-              class="btn btn-secondary"
-            >
-              查看结果
-            </router-link>
+        </section>
+        
+        <!-- 面试分析历史 -->
+        <section class="history-section">
+          <h2>面试分析历史</h2>
+          <div v-if="interviewAnalysisHistory.length === 0" class="empty-section">
+            <p>暂无面试分析记录</p>
           </div>
-        </div>
+          <div v-else class="history-list">
+            <div v-for="item in interviewAnalysisHistory" :key="item.resumeId" class="history-item">
+              <div class="history-info">
+                <div class="history-header">
+                  <span class="position-type">{{ displayPositionType(item.positionType) }}</span>
+                  <span :class="['status-badge', item.status.toLowerCase()]">{{ displayStatus(item.status) }}</span>
+                </div>
+                <div class="history-scores">
+                  <span v-if="item.resumeOverallScore">简历评分: {{ item.resumeOverallScore }}</span>
+                  <span v-if="item.evaluationOverallScore">面试评分: {{ item.evaluationOverallScore }}</span>
+                  <span v-if="item.questionCount">问题数: {{ item.questionCount }}</span>
+                </div>
+                <div class="history-date">
+                  {{ formatDate(item.updatedAt) }}
+                </div>
+              </div>
+              <div class="history-actions">
+                <router-link 
+                  v-if="item.status === 'QUESTIONS_READY'"
+                  :to="`/interview/${item.resumeId}`" 
+                  class="btn btn-primary"
+                >
+                  继续面试
+                </router-link>
+                <router-link 
+                  v-if="item.status === 'EVALUATED'"
+                  :to="`/interview/result/${item.resumeId}`" 
+                  class="btn btn-secondary"
+                >
+                  查看结果
+                </router-link>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   </div>
@@ -83,11 +132,25 @@ const history = ref<any[]>([])
 const loading = ref(false)
 const error = ref('')
 
+// 简历分析历史（已分析或已生成问题）
+const resumeAnalysisHistory = computed(() => {
+  return history.value.filter(item => 
+    item.status === 'ANALYZED' || item.status === 'QUESTIONS_READY'
+  )
+})
+
+// 面试分析历史（已评估）
+const interviewAnalysisHistory = computed(() => {
+  return history.value.filter(item => 
+    item.status === 'EVALUATED'
+  )
+})
+
 const loadHistory = async () => {
   loading.value = true
   error.value = ''
   try {
-    const response = await axios.get('/api/history', {
+    const response = await axios.get('/api/history/data', {
       headers: { Authorization: `Bearer ${token}` }
     })
     history.value = response.data
@@ -208,12 +271,33 @@ onMounted(() => {
   color: #333;
 }
 
+.history-section {
+  margin-bottom: 3rem;
+}
+
+.history-section h2 {
+  margin-bottom: 1.5rem;
+  color: #495057;
+  font-size: 1.25rem;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 0.5rem;
+}
+
 .loading, .error-message, .empty-state {
   text-align: center;
   padding: 3rem;
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.empty-section {
+  text-align: center;
+  padding: 2rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: #6c757d;
 }
 
 .error-message {
