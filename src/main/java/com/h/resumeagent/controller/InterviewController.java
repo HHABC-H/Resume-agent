@@ -49,27 +49,30 @@ public class InterviewController {
      * 面试入口页面
      */
     @GetMapping("/entry")
-    public String interviewEntryPage() {
-        return "interview-entry";
+    @ResponseBody
+    public ResponseEntity<?> interviewEntryPage() {
+        return ResponseEntity.ok(Map.of("message", "Interview entry page"));
     }
 
     /**
      * 面试页面
      */
     @GetMapping("/{resumeId}")
-    public String interviewPage(@PathVariable String resumeId, Model model, HttpServletRequest request) {
+    @ResponseBody
+    public ResponseEntity<?> interviewPage(@PathVariable String resumeId, HttpServletRequest request) {
         Long userId = currentUserId(request);
         if (userId == null) {
-            return "redirect:/login";
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
         }
 
         ResumeData resumeData = interviewService.getResumeById(resumeId, userId);
         if (resumeData == null) {
-            return "redirect:/resume/upload";
+            return ResponseEntity.notFound().build();
         }
 
-        model.addAttribute("resumeId", resumeId);
-        return "interview";
+        return ResponseEntity.ok(Map.of(
+            "resumeId", resumeId
+        ));
     }
 
     /**
@@ -278,21 +281,23 @@ public class InterviewController {
      * 面试结果页面
      */
     @GetMapping("/result/{resumeId}")
-    public String resultPage(@PathVariable String resumeId, Model model, HttpServletRequest request) {
+    @ResponseBody
+    public ResponseEntity<?> resultPage(@PathVariable String resumeId, HttpServletRequest request) {
         Long userId = currentUserId(request);
         if (userId == null) {
-            return "redirect:/login";
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
         }
 
         ResumeData resumeData = interviewService.getResumeById(resumeId, userId);
         if (resumeData == null) {
-            return "redirect:/resume/upload";
+            return ResponseEntity.notFound().build();
         }
 
-        model.addAttribute("resumeId", resumeId);
-        model.addAttribute("evaluation", resumeData.getEvaluation());
-        model.addAttribute("questions", resumeData.getQuestions());
-        return "result";
+        return ResponseEntity.ok(Map.of(
+            "resumeId", resumeId,
+            "evaluation", resumeData.getEvaluation(),
+            "questions", resumeData.getQuestions()
+        ));
     }
 
     private Long currentUserId(HttpServletRequest request) {

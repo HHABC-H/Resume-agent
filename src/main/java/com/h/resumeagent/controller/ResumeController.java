@@ -46,8 +46,9 @@ public class ResumeController {
      * 简历上传页面
      */
     @GetMapping("/upload")
-    public String uploadPage() {
-        return "upload";
+    @ResponseBody
+    public ResponseEntity<?> uploadPage() {
+        return ResponseEntity.ok(Map.of("message", "Upload page"));
     }
 
     /**
@@ -109,20 +110,22 @@ public class ResumeController {
      * 简历分析页面
      */
     @GetMapping("/analysis/{resumeId}")
-    public String analysisPage(@PathVariable String resumeId, Model model, HttpServletRequest request) {
+    @ResponseBody
+    public ResponseEntity<?> analysisPage(@PathVariable String resumeId, HttpServletRequest request) {
         Long userId = currentUserId(request);
         if (userId == null) {
-            return "redirect:/login";
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
         }
 
         ResumeData resumeData = interviewService.getResumeById(resumeId, userId);
         if (resumeData == null) {
-            return "redirect:/resume/upload";
+            return ResponseEntity.notFound().build();
         }
         
-        model.addAttribute("resumeId", resumeId);
-        model.addAttribute("scoreResult", resumeData.getScoreResult());
-        return "analysis";
+        return ResponseEntity.ok(Map.of(
+            "resumeId", resumeId,
+            "scoreResult", resumeData.getScoreResult()
+        ));
     }
 
     /**

@@ -34,8 +34,9 @@ public class HistoryController {
      * 历史记录页面
      */
     @GetMapping
-    public String historyPage() {
-        return "history";
+    @ResponseBody
+    public ResponseEntity<?> historyPage() {
+        return ResponseEntity.ok(Map.of("message", "History page"));
     }
 
     /**
