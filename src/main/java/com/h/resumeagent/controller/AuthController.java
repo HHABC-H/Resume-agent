@@ -81,7 +81,8 @@ public class AuthController {
                         "id", user.getId(),
                         "username", user.getUsername(),
                         "email", StringUtils.defaultString(user.getEmail()),
-                        "displayName", StringUtils.defaultString(user.getDisplayName()))))
+                        "displayName", StringUtils.defaultString(user.getDisplayName()),
+                        "role", user.getRole())))
                 .orElseGet(() -> ResponseEntity.status(401).body(Map.of("error", "用户不存在")));
     }
 

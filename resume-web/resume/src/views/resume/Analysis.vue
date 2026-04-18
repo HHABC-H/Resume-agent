@@ -69,9 +69,9 @@ onMounted(async () => {
 const loadAnalysis = async () => {
   try {
     const response = await axios.get(`/api/resume/analysis/${resumeId.value}`)
-    analysis.value = response.data
+    analysis.value = response.data.scoreResult
   } catch (err: any) {
-    error.value = err.response?.data?.message || '加载分析结果失败'
+    error.value = err.response?.data?.error || '加载分析结果失败'
   } finally {
     loading.value = false
   }
