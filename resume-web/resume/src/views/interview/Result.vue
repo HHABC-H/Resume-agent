@@ -94,7 +94,7 @@ const loadEvaluation = async () => {
 }
 
 const goBack = () => {
-  router.push('/')
+  router.push('/resume/upload')
 }
 </script>
 
