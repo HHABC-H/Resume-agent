@@ -84,7 +84,7 @@ onMounted(async () => {
 
 const loadEvaluation = async () => {
   try {
-    const response = await axios.get(`/api/interview/result/${resumeId.value}`)
+    const response = await axios.get(`/interview/result/${resumeId.value}`)
     evaluation.value = response.data
   } catch (err: any) {
     error.value = err.response?.data?.message || '加载评估结果失败'

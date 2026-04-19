@@ -95,7 +95,7 @@ const recentActivities = ref([
 const loadStats = async () => {
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/api/admin/stats', {
+    const response = await axios.get('/admin/stats', {
       headers: { Authorization: `Bearer ${token}` }
     })
     stats.value = response.data

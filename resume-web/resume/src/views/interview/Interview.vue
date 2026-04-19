@@ -130,8 +130,8 @@ const generateQuestions = async () => {
   console.log('开始生成问题，resumeId:', resumeId.value)
   console.log('Token:', token)
   try {
-    console.log('发送请求到:', `/api/interview/${resumeId.value}/questions`)
-    const response = await axios.post(`/api/interview/${resumeId.value}/questions`, {}, {
+    console.log('发送请求到:', `/interview/${resumeId.value}/questions`)
+    const response = await axios.post(`/interview/${resumeId.value}/questions`, {}, {
       headers: { Authorization: `Bearer ${token}` }
     })
     console.log('请求成功，响应:', response.data)
@@ -160,7 +160,7 @@ const generateFollowUp = async () => {
   error.value = ''
   
   try {
-    const response = await axios.post(`/api/interview/${resumeId.value}/follow-up`, {
+    const response = await axios.post(`/interview/${resumeId.value}/follow-up`, {
       questionIndex: currentQuestionIndex.value,
       answer: answers.value[currentQuestionIndex.value]
     }, {
@@ -210,7 +210,7 @@ const submitAnswers = async () => {
   error.value = ''
   
   try {
-    const response = await axios.post(`/api/interview/${resumeId.value}/submit`, {
+    const response = await axios.post(`/interview/${resumeId.value}/submit`, {
       answers: answers.value,
       followUpAnswers: followUpAnswers.value
     }, {

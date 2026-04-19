@@ -42,18 +42,24 @@ const login = async () => {
   loading.value = true
   error.value = ''
   try {
-    const response = await axios.post('/api/auth/login', form.value)
+    const response = await axios.post('/auth/login', form.value)
     if (response.data.token) {
       localStorage.setItem('token', response.data.token)
       localStorage.setItem('username', response.data.username)
       localStorage.setItem('userId', response.data.userId)
       
-      const userResponse = await axios.get('/api/auth/me', {
+      const userResponse = await axios.get('/auth/me', {
         headers: { Authorization: `Bearer ${response.data.token}` }
       })
-      localStorage.setItem('role', userResponse.data.role || 'USER')
+      const role = userResponse.data.role || 'USER'
+      localStorage.setItem('role', role)
       
-      router.push('/')
+      // 根据角色重定向
+      if (role === 'ADMIN') {
+        router.push('/admin')
+      } else {
+        router.push('/')
+      }
     }
   } catch (err: any) {
     error.value = err.response?.data?.error || '登录失败，请检查用户名和密码'

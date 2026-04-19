@@ -88,7 +88,7 @@ const loadProfile = async () => {
   loading.value = true
   error.value = ''
   try {
-    const response = await axios.get('/api/auth/me', {
+    const response = await axios.get('/auth/me', {
       headers: { Authorization: `Bearer ${token}` }
     })
     profile.value = {
@@ -109,7 +109,7 @@ const saveProfile = async () => {
   error.value = ''
   successMessage.value = ''
   try {
-    await axios.put(`/api/user/profile`, {
+    await axios.put(`/user/profile`, {
       email: profile.value.email,
       displayName: profile.value.displayName
     }, {

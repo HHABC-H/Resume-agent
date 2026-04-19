@@ -100,7 +100,7 @@ const loadRoles = async () => {
   rolesError.value = ''
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/api/admin/roles', {
+    const response = await axios.get('/admin/roles', {
       headers: { Authorization: `Bearer ${token}` }
     })
     roles.value = response.data
@@ -116,7 +116,7 @@ const loadUsers = async () => {
   usersError.value = ''
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/api/admin/users', {
+    const response = await axios.get('/admin/users', {
       headers: { Authorization: `Bearer ${token}` }
     })
     users.value = response.data
@@ -132,7 +132,7 @@ const assignRole = async () => {
   
   try {
     const token = localStorage.getItem('token')
-    await axios.put(`/api/admin/users/${selectedUserId.value}/role`, {
+    await axios.put(`/admin/users/${selectedUserId.value}/role`, {
       role: selectedRole.value
     }, {
       headers: { Authorization: `Bearer ${token}` }

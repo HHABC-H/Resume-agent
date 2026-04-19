@@ -41,7 +41,7 @@ const success = ref(false)
 
 const register = async () => {
   try {
-    await axios.post('/api/auth/register', form.value)
+    await axios.post('/auth/register', form.value)
     success.value = true
     setTimeout(() => {
       router.push('/login')

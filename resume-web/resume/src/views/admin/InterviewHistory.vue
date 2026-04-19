@@ -103,7 +103,7 @@ const loadInterviewHistory = async () => {
   interviewHistoryError.value = ''
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/api/admin/interview-history', {
+    const response = await axios.get('/admin/interview-history', {
       headers: { Authorization: `Bearer ${token}` }
     })
     interviewHistory.value = response.data
@@ -119,7 +119,7 @@ const loadInterviewTemplates = async () => {
   interviewTemplatesError.value = ''
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/api/admin/interview-templates', {
+    const response = await axios.get('/admin/interview-templates', {
       headers: { Authorization: `Bearer ${token}` }
     })
     interviewTemplates.value = response.data

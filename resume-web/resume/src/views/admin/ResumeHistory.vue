@@ -71,7 +71,7 @@ const loadResumeHistory = async () => {
   resumeHistoryError.value = ''
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/api/admin/resume-history', {
+    const response = await axios.get('/admin/resume-history', {
       headers: { Authorization: `Bearer ${token}` }
     })
     resumeHistory.value = response.data
@@ -85,7 +85,7 @@ const loadResumeHistory = async () => {
 const exportResumeHistory = async () => {
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/api/admin/resume-history/export', {
+    const response = await axios.get('/admin/resume-history/export', {
       headers: { Authorization: `Bearer ${token}` },
       responseType: 'blob'
     })

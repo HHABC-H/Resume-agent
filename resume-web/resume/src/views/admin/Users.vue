@@ -136,7 +136,7 @@ const loadUsers = async () => {
   error.value = ''
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/api/admin/users', {
+    const response = await axios.get('/admin/users', {
       headers: { Authorization: `Bearer ${token}` }
     })
     users.value = response.data
@@ -172,7 +172,7 @@ const saveUser = async () => {
   
   try {
     const token = localStorage.getItem('token')
-    await axios.put(`/api/admin/users/${editForm.value.id}`, {
+    await axios.put(`/admin/users/${editForm.value.id}`, {
       email: editForm.value.email,
       displayName: editForm.value.displayName
     }, {
@@ -188,7 +188,7 @@ const saveUser = async () => {
 const toggleUserStatus = async (userId: number, status: number) => {
   try {
     const token = localStorage.getItem('token')
-    await axios.put(`/api/admin/users/${userId}/status`, { status }, {
+    await axios.put(`/admin/users/${userId}/status`, { status }, {
       headers: { Authorization: `Bearer ${token}` }
     })
     loadUsers()
