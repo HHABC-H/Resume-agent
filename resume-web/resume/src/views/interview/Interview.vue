@@ -7,7 +7,7 @@
       <h2>模拟面试</h2>
     </div>
     <div v-if="loading" class="loading">
-      生成问题中...
+      {{ loadingText }}
     </div>
     <div v-else-if="error" class="error-message">
       {{ error }}
@@ -15,26 +15,80 @@
     <div v-else-if="questions" class="interview-content">
       <div class="questions-section">
         <h3>面试问题</h3>
-        <div v-for="(question, index) in questions.questions" :key="index" class="question-item">
+        <div class="question-item">
           <div class="question-header">
-            <span class="question-number">问题 {{ (index as number) + 1 }}</span>
+            <span class="question-number">问题 {{ currentQuestionIndex + 1 }} / {{ questions.questions.length }}</span>
           </div>
-          <div class="question-text">{{ question.question }}</div>
+          <div class="question-text">{{ currentQuestion.question }}</div>
           <div class="answer-section">
             <textarea 
-              v-model="answers[index as number]" 
+              v-model="answers[currentQuestionIndex]" 
               placeholder="请输入你的回答..."
               class="answer-input"
+              @input="resetFollowUp"
             ></textarea>
+          </div>
+          <!-- 追问部分 -->
+          <div v-if="followUpQuestions[currentQuestionIndex]" class="follow-up-section">
+            <div class="follow-up-header">
+              <span class="follow-up-label">追问：</span>
+            </div>
+            <div class="follow-up-text">{{ followUpQuestions[currentQuestionIndex] }}</div>
+            <div class="follow-up-answer-section">
+              <textarea 
+                v-model="followUpAnswers[currentQuestionIndex]" 
+                placeholder="请输入你的回答..."
+                class="answer-input"
+              ></textarea>
+            </div>
           </div>
         </div>
       </div>
       
+      <!-- 问题导航 -->
+      <div class="question-navigation">
+        <button 
+          @click="prevQuestion" 
+          class="btn btn-secondary"
+          :disabled="currentQuestionIndex === 0"
+        >
+          上一题
+        </button>
+        <div class="question-indicators">
+          <div 
+            v-for="(_, index) in questions.questions" 
+            :key="index"
+            :class="['question-indicator', { active: index === currentQuestionIndex }]"
+            @click="goToQuestion(index)"
+          ></div>
+        </div>
+        <button 
+          @click="nextQuestion" 
+          class="btn btn-secondary"
+          :disabled="currentQuestionIndex === questions.questions.length - 1"
+        >
+          下一题
+        </button>
+      </div>
+      
+      <!-- 操作按钮 -->
       <div class="actions">
         <button @click="goBack" class="btn btn-secondary">
           返回
         </button>
-        <button @click="submitAnswers" class="btn btn-primary">
+        <button 
+          v-if="!followUpQuestions[currentQuestionIndex]" 
+          @click="generateFollowUp" 
+          class="btn btn-secondary"
+          :disabled="!answers[currentQuestionIndex]"
+        >
+          追问
+        </button>
+        <button 
+          v-if="currentQuestionIndex === questions.questions.length - 1" 
+          @click="submitAnswers" 
+          class="btn btn-primary"
+        >
           提交答案并评估
         </button>
       </div>
@@ -50,45 +104,124 @@ import axios from 'axios'
 const router = useRouter()
 const route = useRoute()
 const loading = ref(true)
+const loadingText = ref('生成问题中...')
 const error = ref('')
 const questions = ref<any>(null)
 const answers = ref<Record<number, string>>({})
+const followUpQuestions = ref<Record<number, string>>({})
+const followUpAnswers = ref<Record<number, string>>({})
+const currentQuestionIndex = ref(0)
 
 const resumeId = computed(() => route.params.resumeId as string)
+
+// 当前问题
+const currentQuestion = computed(() => {
+  if (!questions.value || !questions.value.questions) return { question: '' }
+  return questions.value.questions[currentQuestionIndex.value] || { question: '' }
+})
 
 onMounted(async () => {
   await generateQuestions()
 })
 
+const token = localStorage.getItem('token')
+
 const generateQuestions = async () => {
+  console.log('开始生成问题，resumeId:', resumeId.value)
+  console.log('Token:', token)
   try {
-    const response = await axios.get(`/api/interview/questions/${resumeId.value}`)
+    console.log('发送请求到:', `/api/interview/${resumeId.value}/questions`)
+    const response = await axios.post(`/api/interview/${resumeId.value}/questions`, {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    console.log('请求成功，响应:', response.data)
     questions.value = response.data
     // 初始化答案对象
     response.data.questions.forEach((_: any, index: number) => {
       answers.value[index] = ''
+      followUpQuestions.value[index] = ''
+      followUpAnswers.value[index] = ''
     })
   } catch (err: any) {
-    error.value = err.response?.data?.message || '生成问题失败'
+    console.error('生成问题失败:', err)
+    error.value = err.response?.data?.error || '生成问题失败'
+  } finally {
+    console.log('生成问题完成，loading 设置为 false')
+    loading.value = false
+  }
+}
+
+// 生成追问
+const generateFollowUp = async () => {
+  if (!answers.value[currentQuestionIndex.value]) return
+  
+  loadingText.value = '生成追问中...'
+  loading.value = true
+  error.value = ''
+  
+  try {
+    const response = await axios.post(`/api/interview/${resumeId.value}/follow-up`, {
+      questionIndex: currentQuestionIndex.value,
+      answer: answers.value[currentQuestionIndex.value]
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    
+    if (response.data && response.data.followUpQuestion) {
+      followUpQuestions.value[currentQuestionIndex.value] = response.data.followUpQuestion
+    }
+  } catch (err: any) {
+    console.error('生成追问失败:', err)
+    error.value = err.response?.data?.error || '生成追问失败'
   } finally {
     loading.value = false
   }
 }
 
+// 重置追问
+const resetFollowUp = () => {
+  followUpQuestions.value[currentQuestionIndex.value] = ''
+  followUpAnswers.value[currentQuestionIndex.value] = ''
+}
+
+// 上一题
+const prevQuestion = () => {
+  if (currentQuestionIndex.value > 0) {
+    currentQuestionIndex.value--
+  }
+}
+
+// 下一题
+const nextQuestion = () => {
+  if (questions.value && currentQuestionIndex.value < questions.value.questions.length - 1) {
+    currentQuestionIndex.value++
+  }
+}
+
+// 跳转到指定问题
+const goToQuestion = (index: number) => {
+  currentQuestionIndex.value = index
+}
+
+// 提交答案
 const submitAnswers = async () => {
+  loadingText.value = '评估中...'
   loading.value = true
   error.value = ''
   
   try {
-    const response = await axios.post(`/api/interview/evaluate/${resumeId.value}`, {
-      answers: answers.value
+    const response = await axios.post(`/api/interview/${resumeId.value}/submit`, {
+      answers: answers.value,
+      followUpAnswers: followUpAnswers.value
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
     })
     
     if (response.data) {
       router.push(`/interview/result/${resumeId.value}`)
     }
   } catch (err: any) {
-    error.value = err.response?.data?.message || '评估失败'
+    error.value = err.response?.data?.error || '评估失败'
   } finally {
     loading.value = false
   }
@@ -129,6 +262,11 @@ const goBack = () => {
 
 .btn-secondary:hover {
   background-color: #5a6268;
+}
+
+.btn-secondary:disabled {
+  background-color: #adb5bd;
+  cursor: not-allowed;
 }
 
 .questions-section {
@@ -175,9 +313,72 @@ h3 {
   font-size: 1rem;
 }
 
+/* 追问部分 */
+.follow-up-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.follow-up-header {
+  margin-bottom: 0.5rem;
+}
+
+.follow-up-label {
+  font-weight: bold;
+  color: #007bff;
+}
+
+.follow-up-text {
+  margin-bottom: 1rem;
+  line-height: 1.5;
+  background-color: #e3f2fd;
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.follow-up-answer-section {
+  margin-top: 1rem;
+}
+
+/* 问题导航 */
+.question-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 2rem 0;
+  gap: 1rem;
+}
+
+.question-indicators {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.question-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #dee2e6;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.question-indicator:hover {
+  background-color: #adb5bd;
+}
+
+.question-indicator.active {
+  background-color: #007bff;
+  width: 16px;
+  height: 16px;
+}
+
+/* 操作按钮 */
 .actions {
   display: flex;
   justify-content: center;
+  gap: 1rem;
   margin-top: 2rem;
 }
 
@@ -189,10 +390,16 @@ button {
   border-radius: 4px;
   font-size: 1rem;
   cursor: pointer;
+  transition: background-color 0.2s;
 }
 
 button:hover {
   background-color: #0069d9;
+}
+
+button:disabled {
+  background-color: #adb5bd;
+  cursor: not-allowed;
 }
 
 .loading {

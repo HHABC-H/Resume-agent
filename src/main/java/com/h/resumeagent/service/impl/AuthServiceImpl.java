@@ -1,4 +1,4 @@
-package com.h.resumeagent.service.impl.auth;
+package com.h.resumeagent.service.impl;
 
 import com.h.resumeagent.common.dto.AuthenticatedUser;
 import com.h.resumeagent.common.entity.UserEntity;

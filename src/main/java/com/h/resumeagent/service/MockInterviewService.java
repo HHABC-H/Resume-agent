@@ -18,6 +18,8 @@ public interface MockInterviewService {
     String POSITION_ALGORITHM = "ALGORITHM";
 
     ResumeScoreResult scoreResume(String resumeText) throws IOException;
+    
+    ResumeScoreResult scoreResume(String resumeText, String positionType) throws IOException;
 
     InterviewQuestions generateInterviewQuestions(String resumeText, String positionType) throws JsonProcessingException;
 
@@ -32,6 +34,13 @@ public interface MockInterviewService {
             String positionType,
             InterviewQuestions questions,
             Map<Integer, String> answers) throws JsonProcessingException;
+    
+    InterviewEvaluation evaluateAnswers(
+            String resumeText,
+            String positionType,
+            InterviewQuestions questions,
+            Map<Integer, String> answers,
+            Map<Integer, String> followUpAnswers) throws JsonProcessingException;
 
     void saveResume(String resumeId, String resumeText, ResumeScoreResult scoreResult);
 

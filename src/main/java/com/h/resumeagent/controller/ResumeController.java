@@ -80,7 +80,7 @@ public class ResumeController {
             String resumeText = resumeDocumentUtils.extractResumeText(file);
 
             // 分析简历
-            ResumeScoreResult scoreResult = interviewService.scoreResume(resumeText);
+            ResumeScoreResult scoreResult = interviewService.scoreResume(resumeText, positionType);
             
             // 保存简历信息
             String resumeId = UUID.randomUUID().toString();

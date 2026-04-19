@@ -108,16 +108,26 @@ public class MockInterviewServiceImpl implements MockInterviewService {
         this.objectMapper = objectMapper;
     }
 
-    public ResumeScoreResult scoreResume(String resumeText) throws IOException {
+    public ResumeScoreResult scoreResume(String resumeText, String positionType) throws IOException {
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(resumeAnalysisSystemPromptResource.getContentAsString(StandardCharsets.UTF_8)));
+        String normalizedPositionType = normalizePositionType(positionType);
+        String positionContext = buildEvaluationPositionContext(normalizedPositionType);
         PromptTemplate promptTemplate = new PromptTemplate(
                 resumeAnalysisUserresource.getContentAsString(StandardCharsets.UTF_8));
-        messages.add(new UserMessage(promptTemplate.render(Map.of("resumeText", resumeText))));
+        messages.add(new UserMessage(promptTemplate.render(Map.of(
+                "resumeText", resumeText,
+                "positionType", normalizedPositionType,
+                "positionContext", positionContext
+        ))));
         Prompt prompt = new Prompt(messages, DashScopeChatOptions.builder().temperature(0.7).build());
         String response = executeAiCallWithRetry("简历评分",
                 () -> chatModel.call(prompt).getResult().getOutput().getText());
         return parseResumeScoreResult(response);
+    }
+    
+    public ResumeScoreResult scoreResume(String resumeText) throws IOException {
+        return scoreResume(resumeText, POSITION_BACKEND_JAVA);
     }
 
     public InterviewQuestions generateInterviewQuestions(String resumeText, String positionType)
@@ -193,7 +203,8 @@ public class MockInterviewServiceImpl implements MockInterviewService {
             String resumeText,
             String positionType,
             InterviewQuestions questions,
-            Map<Integer, String> answers)
+            Map<Integer, String> answers,
+            Map<Integer, String> followUpAnswers)
             throws JsonProcessingException {
         List<Message> messages = new ArrayList<>();
         try {
@@ -207,7 +218,13 @@ public class MockInterviewServiceImpl implements MockInterviewService {
             InterviewQuestions.Question q = questions.getQuestions().get(i);
             String answer = StringUtils.isBlank(answers.get(i)) ? "未作答" : answers.get(i);
             qaText.append("问题 %d [%s]: %s%n".formatted(i + 1, q.getType(), q.getQuestion()));
-            qaText.append("候选人回答：%s%n%n".formatted(answer));
+            qaText.append("候选人回答：%s%n".formatted(answer));
+            // 添加追问答案
+            if (followUpAnswers != null && followUpAnswers.containsKey(i)) {
+                String followUpAnswer = StringUtils.isBlank(followUpAnswers.get(i)) ? "未作答" : followUpAnswers.get(i);
+                qaText.append("追问回答：%s%n".formatted(followUpAnswer));
+            }
+            qaText.append("\n");
         }
         messages.add(new UserMessage("""
                 请评估以下面试问答：
@@ -222,6 +239,15 @@ public class MockInterviewServiceImpl implements MockInterviewService {
         String response = executeAiCallWithRetry("面试答案评估",
                 () -> chatModel.call(prompt).getResult().getOutput().getText());
         return parseInterviewEvaluation(response);
+    }
+    
+    public InterviewEvaluation evaluateAnswers(
+            String resumeText,
+            String positionType,
+            InterviewQuestions questions,
+            Map<Integer, String> answers)
+            throws JsonProcessingException {
+        return evaluateAnswers(resumeText, positionType, questions, answers, null);
     }
 
     public void saveResume(String resumeId, String resumeText, ResumeScoreResult scoreResult) {

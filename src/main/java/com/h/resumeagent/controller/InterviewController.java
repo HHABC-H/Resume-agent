@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 
 @Controller
@@ -205,7 +206,7 @@ public class InterviewController {
     @ResponseBody
     public ResponseEntity<?> submitAnswers(
             @PathVariable String resumeId,
-            @RequestBody Map<Integer, String> answers,
+            @RequestBody Map<String, Object> requestBody,
             HttpServletRequest request) {
         try {
             Long userId = currentUserId(request);
@@ -214,11 +215,40 @@ public class InterviewController {
                 return ResponseEntity.notFound().build();
             }
 
+            // 提取 answers
+            Map<Integer, String> answers = new HashMap<>();
+            Object answersObj = requestBody.get("answers");
+            if (answersObj instanceof Map) {
+                ((Map<?, ?>) answersObj).forEach((key, value) -> {
+                    try {
+                        int index = Integer.parseInt(key.toString());
+                        answers.put(index, value != null ? value.toString() : "");
+                    } catch (NumberFormatException e) {
+                        // 忽略非数字键
+                    }
+                });
+            }
+
+            // 提取 followUpAnswers
+            Map<Integer, String> followUpAnswers = new HashMap<>();
+            Object followUpAnswersObj = requestBody.get("followUpAnswers");
+            if (followUpAnswersObj instanceof Map) {
+                ((Map<?, ?>) followUpAnswersObj).forEach((key, value) -> {
+                    try {
+                        int index = Integer.parseInt(key.toString());
+                        followUpAnswers.put(index, value != null ? value.toString() : "");
+                    } catch (NumberFormatException e) {
+                        // 忽略非数字键
+                    }
+                });
+            }
+
             InterviewEvaluation evaluation = interviewService.evaluateAnswers(
                     resumeData.getResumeText(),
                     resumeData.getPositionType(),
                     resumeData.getQuestions(),
-                    answers);
+                    answers,
+                    followUpAnswers);
             interviewService.saveEvaluation(resumeId, evaluation);
 
             return ResponseEntity.ok(evaluation);
@@ -235,7 +265,7 @@ public class InterviewController {
     @ResponseBody
     public SseEmitter submitAnswersStream(
             @PathVariable String resumeId,
-            @RequestBody Map<Integer, String> answers,
+            @RequestBody Map<String, Object> requestBody,
             HttpServletRequest request) {
         SseEmitterUtil.EmitterState emitterState = SseEmitterUtil.createEmitterState();
         Long userId = currentUserId(request);
@@ -244,6 +274,34 @@ public class InterviewController {
             SseEmitterUtil.sendEvent(emitterState, "error", Map.of("message", "Session not found or access denied"));
             SseEmitterUtil.completeEmitter(emitterState);
             return emitterState.emitter;
+        }
+
+        // 提取 answers
+        Map<Integer, String> answers = new HashMap<>();
+        Object answersObj = requestBody.get("answers");
+        if (answersObj instanceof Map) {
+            ((Map<?, ?>) answersObj).forEach((key, value) -> {
+                try {
+                    int index = Integer.parseInt(key.toString());
+                    answers.put(index, value != null ? value.toString() : "");
+                } catch (NumberFormatException e) {
+                    // 忽略非数字键
+                }
+            });
+        }
+
+        // 提取 followUpAnswers
+        Map<Integer, String> followUpAnswers = new HashMap<>();
+        Object followUpAnswersObj = requestBody.get("followUpAnswers");
+        if (followUpAnswersObj instanceof Map) {
+            ((Map<?, ?>) followUpAnswersObj).forEach((key, value) -> {
+                try {
+                    int index = Integer.parseInt(key.toString());
+                    followUpAnswers.put(index, value != null ? value.toString() : "");
+                } catch (NumberFormatException e) {
+                    // 忽略非数字键
+                }
+            });
         }
 
         CompletableFuture.runAsync(() -> {
@@ -256,7 +314,8 @@ public class InterviewController {
                         resumeData.getResumeText(),
                         resumeData.getPositionType(),
                         resumeData.getQuestions(),
-                        answers);
+                        answers,
+                        followUpAnswers);
                 if (!SseEmitterUtil.sendEvent(emitterState, "progress",
                         Map.of("stage", "saving", "message", "Saving evaluation..."))) {
                     return;
