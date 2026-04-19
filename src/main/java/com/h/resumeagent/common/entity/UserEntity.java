@@ -1,5 +1,6 @@
 package com.h.resumeagent.common.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -63,5 +64,6 @@ public class UserEntity {
 
         @Builder.Default
         @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+        @JsonIgnore
         private List<UserSessionEntity> sessions = new ArrayList<>();
 }

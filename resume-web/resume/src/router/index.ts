@@ -51,27 +51,38 @@ const router = createRouter({
     {
       path: '/admin',
       name: 'admin',
-      component: () => import('../views/admin/AdminDashboard.vue')
-    },
-    {
-      path: '/admin/resume-history',
-      name: 'adminResumeHistory',
-      component: () => import('../views/admin/AdminDashboard.vue')
-    },
-    {
-      path: '/admin/interview-history',
-      name: 'adminInterviewHistory',
-      component: () => import('../views/admin/AdminDashboard.vue')
-    },
-    {
-      path: '/admin/system-config',
-      name: 'adminSystemConfig',
-      component: () => import('../views/admin/AdminDashboard.vue')
-    },
-    {
-      path: '/admin/permissions',
-      name: 'adminPermissions',
-      component: () => import('../views/admin/AdminDashboard.vue')
+      component: () => import('../views/admin/AdminLayout.vue'),
+      children: [
+        {
+          path: 'dashboard',
+          name: 'adminDashboard',
+          component: () => import('../views/admin/Dashboard.vue')
+        },
+        {
+          path: 'users',
+          name: 'adminUsers',
+          component: () => import('../views/admin/Users.vue')
+        },
+        {
+          path: 'resume-history',
+          name: 'adminResumeHistory',
+          component: () => import('../views/admin/ResumeHistory.vue')
+        },
+        {
+          path: 'interview-history',
+          name: 'adminInterviewHistory',
+          component: () => import('../views/admin/InterviewHistory.vue')
+        },
+        {
+          path: 'permissions',
+          name: 'adminPermissions',
+          component: () => import('../views/admin/Permissions.vue')
+        },
+        {
+          path: '',
+          redirect: 'dashboard'
+        }
+      ]
     }
   ],
 })

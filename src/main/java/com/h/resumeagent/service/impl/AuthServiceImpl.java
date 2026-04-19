@@ -174,6 +174,21 @@ public class AuthServiceImpl implements AuthService {
         userRepository.save(user);
     }
 
+    @Transactional
+    @Override
+    public void updateUserRole(Long id, String role) {
+        UserEntity user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
+        
+        if (!role.equals("ADMIN") && !role.equals("USER")) {
+            throw new IllegalArgumentException("无效的角色");
+        }
+        
+        user.setRole(role);
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
     private AuthenticatedUser toAuthenticatedUser(UserEntity user) {
         return new AuthenticatedUser(user.getId(), user.getUsername(), user.getRole());
     }

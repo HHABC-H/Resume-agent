@@ -186,8 +186,10 @@
             <h2>AI模型参数</h2>
             <div>
               <button v-if="!aiConfigEditing" @click="aiConfigEditing = true" class="btn btn-sm btn-primary">编辑</button>
-              <button v-else @click="updateAIConfig" class="btn btn-sm btn-success">保存</button>
-              <button v-else @click="aiConfigEditing = false" class="btn btn-sm btn-secondary">取消</button>
+              <div v-else>
+                <button @click="updateAIConfig" class="btn btn-sm btn-success">保存</button>
+                <button @click="aiConfigEditing = false" class="btn btn-sm btn-secondary">取消</button>
+              </div>
             </div>
           </div>
           <div v-if="aiConfigLoading" class="loading">加载中...</div>
@@ -233,8 +235,10 @@
             <h2>系统限制</h2>
             <div>
               <button v-if="!systemLimitsEditing" @click="systemLimitsEditing = true" class="btn btn-sm btn-primary">编辑</button>
-              <button v-else @click="updateSystemLimits" class="btn btn-sm btn-success">保存</button>
-              <button v-else @click="systemLimitsEditing = false" class="btn btn-sm btn-secondary">取消</button>
+              <div v-else>
+                <button @click="updateSystemLimits" class="btn btn-sm btn-success">保存</button>
+                <button @click="systemLimitsEditing = false" class="btn btn-sm btn-secondary">取消</button>
+              </div>
             </div>
           </div>
           <div v-if="systemLimitsLoading" class="loading">加载中...</div>

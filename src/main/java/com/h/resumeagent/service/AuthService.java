@@ -21,6 +21,8 @@ public interface AuthService {
 
     void updateUserStatus(Long id, int status);
 
+    void updateUserRole(Long id, String role);
+
     record LoginResult(String token, LocalDateTime expiresAt, AuthenticatedUser user) {
     }
 }
