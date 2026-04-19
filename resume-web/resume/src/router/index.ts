@@ -52,6 +52,26 @@ const router = createRouter({
       path: '/admin',
       name: 'admin',
       component: () => import('../views/admin/AdminDashboard.vue')
+    },
+    {
+      path: '/admin/resume-history',
+      name: 'adminResumeHistory',
+      component: () => import('../views/admin/AdminDashboard.vue')
+    },
+    {
+      path: '/admin/interview-history',
+      name: 'adminInterviewHistory',
+      component: () => import('../views/admin/AdminDashboard.vue')
+    },
+    {
+      path: '/admin/system-config',
+      name: 'adminSystemConfig',
+      component: () => import('../views/admin/AdminDashboard.vue')
+    },
+    {
+      path: '/admin/permissions',
+      name: 'adminPermissions',
+      component: () => import('../views/admin/AdminDashboard.vue')
     }
   ],
 })

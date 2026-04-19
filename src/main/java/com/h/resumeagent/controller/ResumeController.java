@@ -5,6 +5,7 @@ import com.h.resumeagent.service.AuthService;
 import com.h.resumeagent.common.dto.ResumeData;
 import com.h.resumeagent.common.dto.ResumeScoreResult;
 import com.h.resumeagent.service.MockInterviewService;
+import com.h.resumeagent.service.PositionService;
 import com.h.resumeagent.utils.ResumeDocumentUtils;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -58,7 +59,7 @@ public class ResumeController {
     @ResponseBody
     public ResponseEntity<?> uploadResume(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "positionType", required = false, defaultValue = MockInterviewService.POSITION_BACKEND_JAVA) String positionType,
+            @RequestParam(value = "positionType", required = false, defaultValue = PositionService.POSITION_BACKEND_JAVA) String positionType,
             HttpServletRequest request) {
         try {
             Long userId = currentUserId(request);

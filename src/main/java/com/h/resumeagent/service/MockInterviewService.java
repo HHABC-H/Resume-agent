@@ -13,14 +13,27 @@ import java.util.Map;
 
 public interface MockInterviewService {
 
-    String POSITION_BACKEND_JAVA = "BACKEND_JAVA";
-    String POSITION_FRONTEND = "FRONTEND";
-    String POSITION_ALGORITHM = "ALGORITHM";
-
+    // 简历相关方法
     ResumeScoreResult scoreResume(String resumeText) throws IOException;
     
     ResumeScoreResult scoreResume(String resumeText, String positionType) throws IOException;
 
+    void saveResume(String resumeId, String resumeText, ResumeScoreResult scoreResult);
+
+    void saveResume(String resumeId, String resumeText, ResumeScoreResult scoreResult, Long userId);
+
+    void saveResume(
+            String resumeId,
+            String resumeText,
+            ResumeScoreResult scoreResult,
+            Long userId,
+            String positionType);
+
+    ResumeData getResumeById(String resumeId);
+
+    ResumeData getResumeById(String resumeId, Long userId);
+
+    // 面试相关方法
     InterviewQuestions generateInterviewQuestions(String resumeText, String positionType) throws JsonProcessingException;
 
     String generateFollowUpQuestion(
@@ -42,29 +55,16 @@ public interface MockInterviewService {
             Map<Integer, String> answers,
             Map<Integer, String> followUpAnswers) throws JsonProcessingException;
 
-    void saveResume(String resumeId, String resumeText, ResumeScoreResult scoreResult);
-
-    void saveResume(String resumeId, String resumeText, ResumeScoreResult scoreResult, Long userId);
-
-    void saveResume(
-            String resumeId,
-            String resumeText,
-            ResumeScoreResult scoreResult,
-            Long userId,
-            String positionType);
-
     void saveQuestions(String resumeId, InterviewQuestions questions);
 
     void saveEvaluation(String resumeId, InterviewEvaluation evaluation);
 
-    ResumeData getResumeById(String resumeId);
-
-    ResumeData getResumeById(String resumeId, Long userId);
-
+    // 历史记录相关方法
     List<ResumeHistoryItem> getRecentResumeHistory(int limit);
 
     List<ResumeHistoryItem> getRecentResumeHistory(Long userId, int limit);
 
+    // 职位类型相关方法
     String normalizePositionType(String positionType);
 
     String displayPositionType(String positionType);
