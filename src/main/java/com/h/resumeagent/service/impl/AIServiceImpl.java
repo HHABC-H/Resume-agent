@@ -131,12 +131,20 @@ public class AIServiceImpl implements AIService {
         try {
             JsonNode rootNode = objectMapper.readTree(json);
             java.util.List<InterviewQuestions.Question> questions = new java.util.ArrayList<>();
-            if (rootNode.has("questions") && rootNode.get("questions").isArray()) {
-                for (JsonNode item : rootNode.get("questions")) {
+            JsonNode questionNodes = resolveQuestionArrayNode(rootNode);
+            if (questionNodes != null && questionNodes.isArray()) {
+                for (JsonNode item : questionNodes) {
+                    String questionText = firstNonBlank(
+                            item.path("question").asText(null),
+                            item.path("content").asText(null),
+                            item.path("title").asText(null));
+                    if (StringUtils.isBlank(questionText)) {
+                        continue;
+                    }
                     InterviewQuestions.Question question = new InterviewQuestions.Question();
-                    question.setQuestion(item.has("question") ? item.get("question").asText() : "");
-                    question.setType(item.has("type") ? item.get("type").asText() : "");
-                    question.setCategory(item.has("category") ? item.get("category").asText() : "");
+                    question.setQuestion(questionText.trim());
+                    question.setType(StringUtils.defaultString(item.path("type").asText("")).trim());
+                    question.setCategory(StringUtils.defaultString(item.path("category").asText("")).trim());
                     questions.add(question);
                 }
             }
@@ -145,6 +153,37 @@ public class AIServiceImpl implements AIService {
             logger.error("解析面试问题失败", e);
             throw new RuntimeException("解析失败: " + e.getMessage(), e);
         }
+    }
+
+    private JsonNode resolveQuestionArrayNode(JsonNode rootNode) {
+        if (rootNode == null || rootNode.isNull()) {
+            return null;
+        }
+        if (rootNode.isArray()) {
+            return rootNode;
+        }
+        JsonNode directNode = firstArrayNode(rootNode, "questions", "questionList", "interviewQuestions");
+        if (directNode != null) {
+            return directNode;
+        }
+        JsonNode dataNode = rootNode.path("data");
+        if (dataNode.isObject()) {
+            return firstArrayNode(dataNode, "questions", "questionList", "interviewQuestions");
+        }
+        return null;
+    }
+
+    private JsonNode firstArrayNode(JsonNode node, String... fieldNames) {
+        if (node == null || fieldNames == null) {
+            return null;
+        }
+        for (String fieldName : fieldNames) {
+            JsonNode value = node.get(fieldName);
+            if (value != null && value.isArray()) {
+                return value;
+            }
+        }
+        return null;
     }
 
     @Override

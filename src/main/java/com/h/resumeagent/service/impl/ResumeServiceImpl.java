@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Service
 public class ResumeServiceImpl implements ResumeService {
@@ -63,24 +64,22 @@ public class ResumeServiceImpl implements ResumeService {
     public ResumeScoreResult scoreResume(String resumeText, String positionType) throws IOException {
         String normalizedPositionType = positionService.normalizePositionType(positionType);
         String positionContext = positionService.buildEvaluationPositionContext(normalizedPositionType);
-        
+
         String prompt = resumeAnalysisUserresource.getContentAsString(StandardCharsets.UTF_8);
         Map<String, Object> promptVariables = Map.of(
                 "resumeText", resumeText,
                 "positionType", normalizedPositionType,
-                "positionContext", positionContext
-        );
-        
+                "positionContext", positionContext);
+
         String response = aiService.executeAiCallWithRetry(
                 "简历评分",
                 resumeAnalysisSystemPromptResource,
                 prompt,
-                promptVariables
-        );
-        
+                promptVariables);
+
         return aiService.parseResumeScoreResult(response);
     }
-    
+
     @Override
     public ResumeScoreResult scoreResume(String resumeText) throws IOException {
         return scoreResume(resumeText, PositionService.POSITION_BACKEND_JAVA);
@@ -241,11 +240,87 @@ public class ResumeServiceImpl implements ResumeService {
                         .collect(java.util.stream.Collectors.toList()))
                 .build();
 
+        // 构建面试问题
+        com.h.resumeagent.common.dto.InterviewQuestions questions = null;
+        if (s.getInterviewQuestions() != null && !s.getInterviewQuestions().isEmpty()) {
+            java.util.List<com.h.resumeagent.common.dto.InterviewQuestions.Question> questionList = new java.util.ArrayList<>();
+            for (com.h.resumeagent.common.entity.InterviewQuestionEntity q : s.getInterviewQuestions()) {
+                if (q != null) {
+                    com.h.resumeagent.common.dto.InterviewQuestions.Question question = new com.h.resumeagent.common.dto.InterviewQuestions.Question();
+                    question.setQuestion(q.getQuestionText());
+                    question.setType(q.getQuestionType());
+                    question.setCategory(q.getCategory());
+                    questionList.add(question);
+                }
+            }
+            if (!questionList.isEmpty()) {
+                questions = new com.h.resumeagent.common.dto.InterviewQuestions();
+                questions.setQuestions(questionList);
+            }
+        }
+
+        // 构建评估结果
+        com.h.resumeagent.common.dto.InterviewEvaluation evaluation = null;
+        if (s.getEvaluationSessionId() != null) {
+            evaluation = com.h.resumeagent.common.dto.InterviewEvaluation.builder()
+                    .sessionId(s.getEvaluationSessionId())
+                    .totalQuestions(s.getEvaluationTotalQuestions())
+                    .overallScore(s.getEvaluationOverallScore())
+                    .overallFeedback(s.getEvaluationOverallFeedback())
+                    .categoryScores(s.getEvaluationCategoryScores().stream()
+                            .sorted((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()))
+                            .map(it -> {
+                                com.h.resumeagent.common.dto.InterviewEvaluation.CategoryScore scoreItem = new com.h.resumeagent.common.dto.InterviewEvaluation.CategoryScore();
+                                scoreItem.setCategory(it.getCategory());
+                                scoreItem.setScore(it.getScore());
+                                scoreItem.setQuestionCount(it.getQuestionCount());
+                                return scoreItem;
+                            })
+                            .collect(java.util.stream.Collectors.toList()))
+                    .questionDetails(s.getEvaluationQuestionDetails().stream()
+                            .map(it -> {
+                                com.h.resumeagent.common.dto.InterviewEvaluation.QuestionDetail detail = new com.h.resumeagent.common.dto.InterviewEvaluation.QuestionDetail();
+                                detail.setQuestionIndex(it.getQuestionIndex());
+                                detail.setQuestion(it.getQuestionText());
+                                detail.setCategory(it.getCategory());
+                                detail.setUserAnswer(it.getUserAnswer());
+                                detail.setScore(it.getScore());
+                                detail.setFeedback(it.getFeedback());
+                                return detail;
+                            })
+                            .collect(java.util.stream.Collectors.toList()))
+                    .strengths(s.getEvaluationStrengths().stream()
+                            .sorted((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()))
+                            .map(it -> it.getStrengthText())
+                            .collect(java.util.stream.Collectors.toList()))
+                    .improvements(s.getEvaluationImprovements().stream()
+                            .sorted((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()))
+                            .map(it -> it.getImprovementText())
+                            .collect(java.util.stream.Collectors.toList()))
+                    .referenceAnswers(s.getEvaluationReferenceAnswers().stream()
+                            .sorted((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()))
+                            .map(it -> {
+                                com.h.resumeagent.common.dto.InterviewEvaluation.ReferenceAnswer answer = new com.h.resumeagent.common.dto.InterviewEvaluation.ReferenceAnswer();
+                                answer.setQuestionIndex(it.getQuestionIndex());
+                                answer.setQuestion(it.getQuestionText());
+                                answer.setReferenceAnswer(it.getReferenceAnswer());
+                                answer.setKeyPoints(it.getKeyPoints().stream()
+                                        .sorted((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()))
+                                        .map(it2 -> it2.getKeyPoint())
+                                        .collect(java.util.stream.Collectors.toList()));
+                                return answer;
+                            })
+                            .collect(java.util.stream.Collectors.toList()))
+                    .build();
+        }
+
         return ResumeData.builder()
                 .resumeId(s.getResumeId())
                 .resumeText(s.getResumeText())
                 .positionType(positionService.normalizePositionType(s.getPositionType()))
                 .scoreResult(score)
+                .questions(questions)
+                .evaluation(evaluation)
                 .status(s.getStatus() == null ? STATUS_ANALYZED : s.getStatus().name())
                 .createdAt(s.getCreatedAt())
                 .updatedAt(s.getUpdatedAt())

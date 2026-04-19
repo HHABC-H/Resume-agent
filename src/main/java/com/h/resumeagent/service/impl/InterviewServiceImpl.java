@@ -55,28 +55,51 @@ public class InterviewServiceImpl implements InterviewService {
 
     @Override
     public InterviewQuestions generateInterviewQuestions(String resumeText, String positionType) {
+        return generateInterviewQuestions(resumeText, positionType, 10);
+    }
+
+    @Override
+    public InterviewQuestions generateInterviewQuestions(String resumeText, String positionType, int questionCount) {
+        int safeQuestionCount = Math.max(1, Math.min(questionCount, 20));
+        logger.info("开始生成面试问题，positionType: {}, resumeText长度: {}, 题目数量: {}", positionType,
+                resumeText != null ? resumeText.length() : 0, safeQuestionCount);
         String normalizedPositionType = positionService.normalizePositionType(positionType);
         String positionContext = positionService.buildQuestionPositionContext(normalizedPositionType);
-        
+
+        logger.info("标准化后的岗位类型: {}, 岗位上下文长度: {}", normalizedPositionType,
+                positionContext != null ? positionContext.length() : 0);
+
         String userPrompt = """
-                请根据以下简历内容生成面试问题：
+                请根据以下简历内容生成%d个面试问题：
                 目标岗位：%s
                 岗位要求：%s
                 ## 候选人简历
                 %s
                 """.formatted(
+                safeQuestionCount,
                 normalizedPositionType,
                 positionContext,
                 resumeText);
-        
+
+        logger.info("生成的用户提示词长度: {}", userPrompt.length());
+
         try {
+            logger.info("开始调用AI服务生成面试问题");
             String response = aiService.executeAiCallWithRetry(
                     "面试问题生成",
                     interviewQuestionsSystemPromptresource,
                     userPrompt,
-                    Map.of()
-            );
-            return aiService.parseInterviewQuestions(response);
+                    Map.of());
+            logger.info("AI服务响应长度: {}", response != null ? response.length() : 0);
+            logger.info("AI服务响应内容: {}", response);
+
+            InterviewQuestions questions = aiService.parseInterviewQuestions(response);
+            logger.info("解析后的面试问题数量: {}",
+                    questions != null && questions.getQuestions() != null ? questions.getQuestions().size() : 0);
+            if (questions == null || questions.getQuestions() == null || questions.getQuestions().isEmpty()) {
+                throw new IllegalStateException("AI未能生成任何有效面试问题");
+            }
+            return questions;
         } catch (Exception e) {
             logger.error("生成面试问题失败", e);
             throw new RuntimeException("生成面试问题失败: " + e.getMessage(), e);
@@ -98,7 +121,7 @@ public class InterviewServiceImpl implements InterviewService {
 
         String normalizedPositionType = positionService.normalizePositionType(positionType);
         String positionContext = positionService.buildEvaluationPositionContext(normalizedPositionType);
-        
+
         String userPrompt = """
                 目标岗位：%s
                 岗位侧重点：%s
@@ -116,14 +139,13 @@ public class InterviewServiceImpl implements InterviewService {
                 StringUtils.defaultIfBlank(resumeText, "简历内容为空"),
                 question.getQuestion(),
                 answer);
-        
+
         try {
             String response = aiService.executeAiCallWithRetry(
                     "面试追问生成",
                     interviewFollowupSystemPromptResource,
                     userPrompt,
-                    Map.of()
-            );
+                    Map.of());
             return aiService.parseFollowUpQuestion(response);
         } catch (Exception e) {
             logger.error("生成追问失败", e);
@@ -149,7 +171,7 @@ public class InterviewServiceImpl implements InterviewService {
             Map<Integer, String> followUpAnswers) {
         String normalizedPositionType = positionService.normalizePositionType(positionType);
         String positionContext = positionService.buildEvaluationPositionContext(normalizedPositionType);
-        
+
         StringBuilder qaText = new StringBuilder();
         for (int i = 0; i < questions.getQuestions().size(); i++) {
             InterviewQuestions.Question q = questions.getQuestions().get(i);
@@ -163,7 +185,7 @@ public class InterviewServiceImpl implements InterviewService {
             }
             qaText.append("\n");
         }
-        
+
         String userPrompt = """
                 请评估以下面试问答：
                 目标岗位：%s
@@ -173,14 +195,13 @@ public class InterviewServiceImpl implements InterviewService {
                 normalizedPositionType,
                 positionContext,
                 qaText);
-        
+
         try {
             String response = aiService.executeAiCallWithRetry(
                     "面试答案评估",
                     interviewEvaluationSystemPromptresource,
                     userPrompt,
-                    Map.of()
-            );
+                    Map.of());
             return aiService.parseInterviewEvaluation(response);
         } catch (Exception e) {
             logger.error("评估面试答案失败", e);

@@ -12,10 +12,10 @@
         <h3>面试评分</h3>
         <div class="score-value">{{ evaluation.overallScore }}</div>
         <div class="score-breakdown">
-          <div v-for="(score, category) in evaluation.categoryScores" :key="category" class="score-item">
-            <span>{{ category }}:</span>
-            <span>{{ score }}</span>
-          </div>
+          <div v-for="(item, index) in evaluation.categoryScores" :key="index" class="score-item">
+            <span>{{ item.category }}:</span>
+            <span>{{ item.score }}</span>
+        </div>
         </div>
       </div>
       
@@ -39,19 +39,19 @@
       
       <div class="answers-section">
         <h3>问题与答案评估</h3>
-        <div v-for="(item, index) in evaluation.questionEvaluations" :key="index" class="answer-item">
+        <div v-for="(item, index) in evaluation.questionDetails" :key="index" class="answer-item">
           <div class="answer-header">
-            <span class="question-number">问题 {{ (index as number) + 1 }}</span>
+            <span class="question-number">问题 {{ (item.questionIndex as number) + 1 }}</span>
             <span class="answer-score">得分: {{ item.score }}</span>
           </div>
           <div class="question-text">{{ item.question }}</div>
           <div class="user-answer">
             <strong>你的回答:</strong>
-            <p>{{ item.answer }}</p>
+            <p>{{ item.userAnswer }}</p>
           </div>
           <div class="evaluation-text">
             <strong>评估:</strong>
-            <p>{{ item.evaluation }}</p>
+            <p>{{ item.feedback }}</p>
           </div>
         </div>
       </div>
@@ -85,9 +85,9 @@ onMounted(async () => {
 const loadEvaluation = async () => {
   try {
     const response = await axios.get(`/interview/result/${resumeId.value}`)
-    evaluation.value = response.data
+    evaluation.value = response.data.evaluation
   } catch (err: any) {
-    error.value = err.response?.data?.message || '加载评估结果失败'
+    error.value = err.response?.data?.error || '加载评估结果失败'
   } finally {
     loading.value = false
   }

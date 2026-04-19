@@ -66,7 +66,7 @@
               </div>
               <div class="history-actions">
                 <router-link 
-                  v-if="item.status === 'ANALYZED'"
+                  v-if="item.status === 'ANALYZED' || item.status === 'QUESTIONS_READY' || item.status === 'EVALUATED'"
                   :to="`/resume/analysis/${item.resumeId}`" 
                   class="btn btn-secondary"
                 >
@@ -149,7 +149,7 @@ const error = ref('')
 // 简历分析历史（已分析或已生成问题）
 const resumeAnalysisHistory = computed(() => {
   return history.value.filter(item => 
-    item.status === 'ANALYZED' || item.status === 'QUESTIONS_READY'
+    item.status === 'ANALYZED' || item.status === 'QUESTIONS_READY' || item.status === 'EVALUATED'
   )
 })
 

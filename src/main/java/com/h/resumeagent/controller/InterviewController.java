@@ -81,7 +81,7 @@ public class InterviewController {
      */
     @PostMapping("/{resumeId}/questions")
     @ResponseBody
-    public ResponseEntity<?> generateQuestions(@PathVariable String resumeId, HttpServletRequest request) {
+    public ResponseEntity<?> generateQuestions(@PathVariable String resumeId, @RequestBody Map<String, Object> requestBody, HttpServletRequest request) {
         try {
             Long userId = currentUserId(request);
             ResumeData resumeData = interviewService.getResumeById(resumeId, userId);
@@ -89,9 +89,19 @@ public class InterviewController {
                 return ResponseEntity.notFound().build();
             }
 
+            // 提取题目数量，默认为10
+            Integer questionCount = 10;
+            if (requestBody.containsKey("questionCount")) {
+                Object countObj = requestBody.get("questionCount");
+                if (countObj instanceof Number) {
+                    questionCount = ((Number) countObj).intValue();
+                }
+            }
+
             InterviewQuestions questions = interviewService.generateInterviewQuestions(
                     resumeData.getResumeText(),
-                    resumeData.getPositionType());
+                    resumeData.getPositionType(),
+                    questionCount);
             interviewService.saveQuestions(resumeId, questions);
 
             return ResponseEntity.ok(questions);
@@ -243,10 +253,15 @@ public class InterviewController {
                 });
             }
 
+            InterviewQuestions questions = resumeData.getQuestions();
+            if (questions == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "No interview questions found"));
+            }
+            
             InterviewEvaluation evaluation = interviewService.evaluateAnswers(
                     resumeData.getResumeText(),
                     resumeData.getPositionType(),
-                    resumeData.getQuestions(),
+                    questions,
                     answers,
                     followUpAnswers);
             interviewService.saveEvaluation(resumeId, evaluation);

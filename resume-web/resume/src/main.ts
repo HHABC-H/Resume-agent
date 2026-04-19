@@ -7,7 +7,7 @@ import router from './router'
 
 // 配置 axios
 axios.defaults.baseURL = '/api'
-axios.defaults.timeout = 10000 // 设置 10 秒超时
+axios.defaults.timeout = 60000 // 设置 60 秒超时
 
 // 请求拦截器
 axios.interceptors.request.use(

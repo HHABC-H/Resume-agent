@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -127,12 +128,15 @@ public class HistoryServiceImpl implements HistoryService {
         Throwable current = throwable;
         while (current != null) {
             String message = current.getMessage();
-            if (message != null && (
-                    message.contains("Table") && message.contains("doesn't exist") ||
-                    message.contains("列名无效") ||
-                    message.contains("column") && message.contains("not found")
-            )) {
-                return true;
+            if (message != null) {
+                String lower = message.toLowerCase(Locale.ROOT);
+                boolean tableNotExists = lower.contains("table") && lower.contains("exist");
+                boolean unknownColumn = lower.contains("unknown column");
+                boolean columnNotFound = lower.contains("column") && lower.contains("not found");
+                boolean invalidColumnLocalized = message.contains("列名无效");
+                if (tableNotExists || unknownColumn || columnNotFound || invalidColumnLocalized) {
+                    return true;
+                }
             }
             current = current.getCause();
         }

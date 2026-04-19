@@ -12,7 +12,15 @@
     <div v-else-if="error" class="error-message">
       {{ error }}
     </div>
-    <div v-else-if="questions" class="interview-content">
+    <div v-else-if="!questions" class="question-count-selector">
+      <h3>选择题目数量</h3>
+      <div class="count-options">
+        <button @click="generateQuestionsWithCount(5)" class="btn btn-primary">5题</button>
+        <button @click="generateQuestionsWithCount(10)" class="btn btn-primary">10题</button>
+        <button @click="generateQuestionsWithCount(15)" class="btn btn-primary">15题</button>
+      </div>
+    </div>
+    <div v-else class="interview-content">
       <div class="questions-section">
         <h3>面试问题</h3>
         <div class="question-item">
@@ -103,7 +111,7 @@ import axios from 'axios'
 
 const router = useRouter()
 const route = useRoute()
-const loading = ref(true)
+const loading = ref(false)
 const loadingText = ref('生成问题中...')
 const error = ref('')
 const questions = ref<any>(null)
@@ -120,28 +128,33 @@ const currentQuestion = computed(() => {
   return questions.value.questions[currentQuestionIndex.value] || { question: '' }
 })
 
-onMounted(async () => {
-  await generateQuestions()
+onMounted(() => {
+  // 不自动生成问题，让用户选择题目数量后再生成
 })
 
 const token = localStorage.getItem('token')
 
-const generateQuestions = async () => {
-  console.log('开始生成问题，resumeId:', resumeId.value)
+const generateQuestions = async (questionCount: number = 10) => {
+  console.log('开始生成问题，resumeId:', resumeId.value, '题目数量:', questionCount)
   console.log('Token:', token)
   try {
     console.log('发送请求到:', `/interview/${resumeId.value}/questions`)
-    const response = await axios.post(`/interview/${resumeId.value}/questions`, {}, {
+    const response = await axios.post(`/interview/${resumeId.value}/questions`, { questionCount }, {
       headers: { Authorization: `Bearer ${token}` }
     })
     console.log('请求成功，响应:', response.data)
     questions.value = response.data
     // 初始化答案对象
-    response.data.questions.forEach((_: any, index: number) => {
-      answers.value[index] = ''
-      followUpQuestions.value[index] = ''
-      followUpAnswers.value[index] = ''
-    })
+    if (response.data.questions && response.data.questions.length > 0) {
+      response.data.questions.forEach((_: any, index: number) => {
+        answers.value[index] = ''
+        followUpQuestions.value[index] = ''
+        followUpAnswers.value[index] = ''
+      })
+    } else {
+      console.error('生成的问题数组为空')
+      error.value = '生成问题失败：AI未能生成任何面试问题'
+    }
   } catch (err: any) {
     console.error('生成问题失败:', err)
     error.value = err.response?.data?.error || '生成问题失败'
@@ -149,6 +162,13 @@ const generateQuestions = async () => {
     console.log('生成问题完成，loading 设置为 false')
     loading.value = false
   }
+}
+
+const generateQuestionsWithCount = async (count: number) => {
+  loading.value = true
+  loadingText.value = `生成${count}个问题中...`
+  error.value = ''
+  await generateQuestions(count)
 }
 
 // 生成追问

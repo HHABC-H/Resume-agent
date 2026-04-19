@@ -35,6 +35,8 @@ public interface MockInterviewService {
 
     // 面试相关方法
     InterviewQuestions generateInterviewQuestions(String resumeText, String positionType) throws JsonProcessingException;
+    
+    InterviewQuestions generateInterviewQuestions(String resumeText, String positionType, int questionCount) throws JsonProcessingException;
 
     String generateFollowUpQuestion(
             String resumeText,

@@ -84,6 +84,11 @@ public class MockInterviewServiceImpl implements MockInterviewService {
     public InterviewQuestions generateInterviewQuestions(String resumeText, String positionType) throws com.fasterxml.jackson.core.JsonProcessingException {
         return interviewService.generateInterviewQuestions(resumeText, positionType);
     }
+    
+    @Override
+    public InterviewQuestions generateInterviewQuestions(String resumeText, String positionType, int questionCount) throws com.fasterxml.jackson.core.JsonProcessingException {
+        return interviewService.generateInterviewQuestions(resumeText, positionType, questionCount);
+    }
 
     @Override
     public String generateFollowUpQuestion(
