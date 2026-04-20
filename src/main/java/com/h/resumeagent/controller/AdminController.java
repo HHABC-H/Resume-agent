@@ -1,9 +1,11 @@
 package com.h.resumeagent.controller;
 
 import com.h.resumeagent.common.entity.ResumeHistoryViewEntity;
+import com.h.resumeagent.common.entity.ResumeSessionEntity;
 import com.h.resumeagent.common.entity.ResumeStatus;
 import com.h.resumeagent.common.entity.UserEntity;
 import com.h.resumeagent.common.repository.ResumeHistoryViewRepository;
+import com.h.resumeagent.common.repository.ResumeSessionRepository;
 import com.h.resumeagent.common.repository.UserRepository;
 import com.h.resumeagent.service.AuthService;
 import com.h.resumeagent.service.MockInterviewService;
@@ -24,13 +26,17 @@ public class AdminController {
     private final AuthService authService;
     private final MockInterviewService interviewService;
     private final ResumeHistoryViewRepository resumeHistoryViewRepository;
+    private final ResumeSessionRepository resumeSessionRepository;
     private final UserRepository userRepository;
 
     public AdminController(AuthService authService, MockInterviewService interviewService,
-            ResumeHistoryViewRepository resumeHistoryViewRepository, UserRepository userRepository) {
+            ResumeHistoryViewRepository resumeHistoryViewRepository,
+            ResumeSessionRepository resumeSessionRepository,
+            UserRepository userRepository) {
         this.authService = authService;
         this.interviewService = interviewService;
         this.resumeHistoryViewRepository = resumeHistoryViewRepository;
+        this.resumeSessionRepository = resumeSessionRepository;
         this.userRepository = userRepository;
     }
 
@@ -183,10 +189,23 @@ public class AdminController {
     public ResponseEntity<?> getAllResumeHistory(@RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        List<ResumeHistoryViewEntity> list = resumeHistoryViewRepository.findAllByOrderByUpdatedAtDesc(pageable);
-        long total = resumeHistoryViewRepository.count();
+        List<ResumeSessionEntity> sessions = resumeSessionRepository.findAllByOrderByUpdatedAtDesc(pageable);
+        List<Map<String, Object>> content = sessions.stream().map(session -> {
+            Map<String, Object> item = new HashMap<>();
+            item.put("resumeId", session.getResumeId());
+            item.put("userId", session.getUserId());
+            item.put("status", session.getStatus());
+            item.put("positionType", session.getPositionType());
+            item.put("resumeOverallScore", session.getResumeOverallScore());
+            item.put("evaluationOverallScore", session.getEvaluationOverallScore());
+            item.put("questionCount", session.getInterviewQuestions() != null ? session.getInterviewQuestions().size() : 0);
+            item.put("createdAt", session.getCreatedAt());
+            item.put("updatedAt", session.getUpdatedAt());
+            return item;
+        }).collect(java.util.stream.Collectors.toList());
+        long total = resumeSessionRepository.count();
         return ResponseEntity.ok(Map.of(
-                "content", list,
+                "content", content,
                 "totalElements", total,
                 "totalPages", (int) Math.ceil((double) total / size),
                 "currentPage", page,
@@ -198,8 +217,29 @@ public class AdminController {
      */
     @GetMapping("/resume-history/export")
     public ResponseEntity<?> exportResumeHistory() {
-        return ResponseEntity.ok(Map.of(
-                "message", "导出功能开发中"));
+        List<ResumeSessionEntity> sessions = resumeSessionRepository.findAll();
+        StringBuilder csv = new StringBuilder();
+        csv.append("简历ID,用户ID,职位类型,状态,简历评分,面试评分,问题数量,创建时间,更新时间\n");
+        for (ResumeSessionEntity session : sessions) {
+            csv.append(String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
+                    nullToEmpty(session.getResumeId()),
+                    session.getUserId(),
+                    nullToEmpty(session.getPositionType()),
+                    session.getStatus(),
+                    session.getResumeOverallScore(),
+                    session.getEvaluationOverallScore(),
+                    session.getInterviewQuestions() != null ? session.getInterviewQuestions().size() : 0,
+                    session.getCreatedAt(),
+                    session.getUpdatedAt()));
+        }
+        return ResponseEntity.ok()
+                .header("Content-Type", "text/csv;charset=UTF-8")
+                .header("Content-Disposition", "attachment;filename=resume-history.csv")
+                .body(csv.toString());
+    }
+
+    private String nullToEmpty(Object obj) {
+        return obj == null ? "" : obj.toString();
     }
 
     /**
@@ -209,10 +249,23 @@ public class AdminController {
     public ResponseEntity<?> getAllInterviewHistory(@RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        List<ResumeHistoryViewEntity> list = resumeHistoryViewRepository.findAllByOrderByUpdatedAtDesc(pageable);
-        long total = resumeHistoryViewRepository.count();
+        List<ResumeSessionEntity> sessions = resumeSessionRepository.findAllByOrderByUpdatedAtDesc(pageable);
+        List<Map<String, Object>> content = sessions.stream().map(session -> {
+            Map<String, Object> item = new HashMap<>();
+            item.put("resumeId", session.getResumeId());
+            item.put("userId", session.getUserId());
+            item.put("status", session.getStatus());
+            item.put("positionType", session.getPositionType());
+            item.put("resumeOverallScore", session.getResumeOverallScore());
+            item.put("evaluationOverallScore", session.getEvaluationOverallScore());
+            item.put("questionCount", session.getInterviewQuestions() != null ? session.getInterviewQuestions().size() : 0);
+            item.put("createdAt", session.getCreatedAt());
+            item.put("updatedAt", session.getUpdatedAt());
+            return item;
+        }).collect(java.util.stream.Collectors.toList());
+        long total = resumeSessionRepository.count();
         return ResponseEntity.ok(Map.of(
-                "content", list,
+                "content", content,
                 "totalElements", total,
                 "totalPages", (int) Math.ceil((double) total / size),
                 "currentPage", page,
@@ -224,17 +277,20 @@ public class AdminController {
      */
     @GetMapping("/interview-history/{resumeId}")
     public ResponseEntity<?> getInterviewDetail(@PathVariable String resumeId) {
-        return resumeHistoryViewRepository.findById(resumeId)
-                .map(entity -> ResponseEntity.ok(Map.of(
-                        "resumeId", entity.getResumeId(),
-                        "userId", entity.getUserId(),
-                        "status", entity.getStatus(),
-                        "positionType", entity.getPositionType(),
-                        "resumeOverallScore", entity.getResumeOverallScore(),
-                        "evaluationOverallScore", entity.getEvaluationOverallScore(),
-                        "questionCount", entity.getQuestionCount(),
-                        "createdAt", entity.getCreatedAt(),
-                        "updatedAt", entity.getUpdatedAt())))
+        return resumeSessionRepository.findByResumeId(resumeId)
+                .map(session -> {
+                    Map<String, Object> detail = new HashMap<>();
+                    detail.put("resumeId", session.getResumeId());
+                    detail.put("userId", session.getUserId());
+                    detail.put("status", session.getStatus());
+                    detail.put("positionType", session.getPositionType());
+                    detail.put("resumeOverallScore", session.getResumeOverallScore());
+                    detail.put("evaluationOverallScore", session.getEvaluationOverallScore());
+                    detail.put("questionCount", session.getInterviewQuestions() != null ? session.getInterviewQuestions().size() : 0);
+                    detail.put("createdAt", session.getCreatedAt());
+                    detail.put("updatedAt", session.getUpdatedAt());
+                    return ResponseEntity.ok(detail);
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 
