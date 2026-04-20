@@ -32,6 +32,7 @@ server:
 
 app:
   ai:
+    model: qwen-plus
     retry:
       max-attempts: 3
       backoff-ms: 800
