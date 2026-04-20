@@ -19,7 +19,8 @@ spring:
       api-key: sk-669c5a2462c94c689774bb03d465dbcf
       chat:
         options:
-          enable-thinking: true
+          enable-thinking: false
+          model: qwen-plus
     minimax:
       api-key: ${MINIMAX_API_KEY}
   mvc:
