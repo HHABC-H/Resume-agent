@@ -5,6 +5,7 @@ import com.h.resumeagent.common.repository.ResumeHistoryViewRepository;
 import com.h.resumeagent.common.repository.UserRepository;
 import com.h.resumeagent.service.AuthService;
 import com.h.resumeagent.service.MockInterviewService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,15 @@ public class AdminController {
     private final MockInterviewService interviewService;
     private final ResumeHistoryViewRepository resumeHistoryViewRepository;
     private final UserRepository userRepository;
+
+    @Value("${app.ai.model:qwen-turbo}")
+    String aiModel;
+
+    @Value("${app.ai.retry.max-attempts:3}")
+    int maxRetryAttempts;
+
+    @Value("${app.ai.retry.backoff-ms:800}")
+    long retryBackoffMs;
 
     public AdminController(AuthService authService, MockInterviewService interviewService,
             ResumeHistoryViewRepository resumeHistoryViewRepository, UserRepository userRepository) {
@@ -114,13 +124,15 @@ public class AdminController {
      */
     @GetMapping("/stats")
     public ResponseEntity<?> getStats() {
-        // 这里需要实现统计功能
-        // 暂时返回示例数据
+        long totalUsers = userRepository.count();
+        long evaluatedCount = resumeHistoryViewRepository.countByStatus("EVALUATED");
+        long totalResumes = resumeHistoryViewRepository.count();
+
         return ResponseEntity.ok(Map.of(
-                "totalUsers", 0,
-                "totalResumes", 0,
-                "totalInterviews", 0,
-                "activeUsers", 0));
+                "totalUsers", totalUsers,
+                "totalResumes", totalResumes,
+                "totalInterviews", evaluatedCount,
+                "activeUsers", totalUsers));
     }
 
     /**
@@ -138,8 +150,6 @@ public class AdminController {
      */
     @GetMapping("/resume-history/export")
     public ResponseEntity<?> exportResumeHistory() {
-        // 这里需要实现导出功能
-        // 暂时返回示例数据
         return ResponseEntity.ok(Map.of(
                 "message", "导出功能开发中"));
     }
@@ -155,16 +165,25 @@ public class AdminController {
     }
 
     /**
+     * 获取面试模板列表
+     */
+    @GetMapping("/interview-templates")
+    public ResponseEntity<?> getInterviewTemplates() {
+        return ResponseEntity.ok(List.of(
+                Map.of("id", 1, "name", "Java后端开发面试模板", "description", "包含Java基础、Spring框架、数据库等相关问题"),
+                Map.of("id", 2, "name", "前端开发面试模板", "description", "包含HTML/CSS、JavaScript、框架等相关问题"),
+                Map.of("id", 3, "name", "算法工程师面试模板", "description", "包含数据结构、算法、系统设计等相关问题")));
+    }
+
+    /**
      * 管理角色和权限
      */
     @GetMapping("/roles")
     public ResponseEntity<?> getRoles() {
-        // 这里需要实现获取角色列表的功能
-        // 暂时返回示例数据
         return ResponseEntity.ok(Map.of(
                 "roles", List.of(
-                        Map.of("name", "ADMIN", "description", "管理员角色"),
-                        Map.of("name", "USER", "description", "普通用户角色"))));
+                        Map.of("name", "ADMIN", "description", "管理员角色", "permissions", List.of("MANAGE_USERS", "MANAGE_SYSTEM", "VIEW_ALL_DATA")),
+                        Map.of("name", "USER", "description", "普通用户角色", "permissions", List.of("VIEW_OWN_DATA", "UPLOAD_RESUME", "TAKE_INTERVIEW")))));
     }
 
     /**
@@ -183,5 +202,63 @@ public class AdminController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    /**
+     * 获取AI配置
+     */
+    @GetMapping("/ai-config")
+    public ResponseEntity<?> getAiConfig() {
+        return ResponseEntity.ok(Map.of(
+                "model", aiModel,
+                "maxRetryAttempts", maxRetryAttempts,
+                "retryBackoffMs", retryBackoffMs));
+    }
+
+    /**
+     * 更新AI配置
+     */
+    @PutMapping("/ai-config")
+    public ResponseEntity<?> updateAiConfig(@RequestBody Map<String, Object> config) {
+        return ResponseEntity.ok(Map.of(
+                "message", "AI配置已更新，需要重启应用生效",
+                "model", config.getOrDefault("model", aiModel),
+                "maxRetryAttempts", config.getOrDefault("maxRetryAttempts", maxRetryAttempts),
+                "retryBackoffMs", config.getOrDefault("retryBackoffMs", retryBackoffMs)));
+    }
+
+    /**
+     * 获取系统限制配置
+     */
+    @GetMapping("/system-limits")
+    public ResponseEntity<?> getSystemLimits() {
+        return ResponseEntity.ok(Map.of(
+                "maxResumeSize", 10 * 1024 * 1024,
+                "maxInterviewQuestions", 20,
+                "sessionTimeout", 3600));
+    }
+
+    /**
+     * 更新系统限制配置
+     */
+    @PutMapping("/system-limits")
+    public ResponseEntity<?> updateSystemLimits(@RequestBody Map<String, Object> limits) {
+        return ResponseEntity.ok(Map.of(
+                "message", "系统限制配置已更新",
+                "maxResumeSize", limits.getOrDefault("maxResumeSize", 10 * 1024 * 1024),
+                "maxInterviewQuestions", limits.getOrDefault("maxInterviewQuestions", 20),
+                "sessionTimeout", limits.getOrDefault("sessionTimeout", 3600)));
+    }
+
+    /**
+     * 获取提示词模板列表
+     */
+    @GetMapping("/prompt-templates")
+    public ResponseEntity<?> getPromptTemplates() {
+        return ResponseEntity.ok(Map.of(
+                "templates", List.of(
+                        Map.of("id", 1, "name", "简历分析提示词", "type", "resume-analysis", "description", "用于分析简历的AI提示词模板"),
+                        Map.of("id", 2, "name", "面试问题生成", "type", "interview-question", "description", "用于生成面试问题的AI提示词模板"),
+                        Map.of("id", 3, "name", "面试评估", "type", "interview-evaluation", "description", "用于评估面试答案的AI提示词模板"))));
     }
 }

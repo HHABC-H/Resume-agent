@@ -20,7 +20,7 @@ spring:
       chat:
         options:
           enable-thinking: false
-          model: qwen-turbo
+          model: qwen-plus
     minimax:
       api-key: ${MINIMAX_API_KEY}
   mvc:
@@ -33,7 +33,7 @@ server:
 
 app:
   ai:
-    model: qwen-turbo
+    model: qwen-plus
     retry:
       max-attempts: 3
       backoff-ms: 800

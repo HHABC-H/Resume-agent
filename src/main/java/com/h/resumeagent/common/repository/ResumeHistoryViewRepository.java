@@ -11,4 +11,8 @@ public interface ResumeHistoryViewRepository extends JpaRepository<ResumeHistory
     List<ResumeHistoryViewEntity> findAllByOrderByUpdatedAtDesc(Pageable pageable);
 
     List<ResumeHistoryViewEntity> findByUserIdOrderByUpdatedAtDesc(Long userId, Pageable pageable);
+
+    long count();
+
+    long countByStatus(String status);
 }
