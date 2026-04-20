@@ -9,6 +9,7 @@ import com.h.resumeagent.common.dto.InterviewEvaluation;
 import com.h.resumeagent.common.dto.InterviewQuestions;
 import com.h.resumeagent.common.dto.ResumeScoreResult;
 import com.h.resumeagent.service.AIService;
+import com.h.resumeagent.utils.ApiLogger;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,7 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,10 @@ public class AIServiceImpl implements AIService {
 
     private final DashScopeChatModel chatModel;
     private final ObjectMapper objectMapper;
+    private final ApiLogger apiLogger;
+
+    @Value("${app.ai.model:qwen-plus}")
+    String modelName;
 
     @Value("${app.ai.retry.max-attempts:3}")
     int aiRetryMaxAttempts = 3;
@@ -47,9 +53,11 @@ public class AIServiceImpl implements AIService {
     @Value("${app.ai.retry.max-backoff-ms:4000}")
     long aiRetryMaxBackoffMs = 4_000L;
 
-    public AIServiceImpl(DashScopeChatModel chatModel, ObjectMapper objectMapper) {
+    @Autowired
+    public AIServiceImpl(DashScopeChatModel chatModel, ObjectMapper objectMapper, ApiLogger apiLogger) {
         this.chatModel = chatModel;
         this.objectMapper = objectMapper;
+        this.apiLogger = apiLogger;
     }
 
     @Override
@@ -69,7 +77,10 @@ public class AIServiceImpl implements AIService {
                 Message userMessage = new UserMessage(renderedUserPrompt);
                 Prompt prompt = new Prompt(
                         java.util.List.of(systemMessage, userMessage),
-                        DashScopeChatOptions.builder().temperature(0.7).build()
+                        DashScopeChatOptions.builder()
+                                .temperature(0.7)
+                                .model(modelName)
+                                .build()
                 );
                 return chatModel.call(prompt).getResult().getOutput().getText();
             });
@@ -292,14 +303,19 @@ public class AIServiceImpl implements AIService {
     String executeAiCallWithRetry(String scene, java.util.function.Supplier<String> action) {
         int maxAttempts = Math.max(1, aiRetryMaxAttempts);
         RuntimeException lastException = null;
+        String callId = UUID.randomUUID().toString();
 
+        apiLogger.logApiCallStart(scene, callId);
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                return action.get();
+                String result = action.get();
+                apiLogger.logApiCallEnd(scene, callId, result, true);
+                return result;
             } catch (RuntimeException ex) {
                 lastException = ex;
                 boolean retryable = isRetryableAiException(ex);
                 if (!retryable || attempt == maxAttempts) {
+                    apiLogger.logApiCallError(scene, callId, ex);
                     throw ex;
                 }
 
@@ -309,10 +325,12 @@ public class AIServiceImpl implements AIService {
                     Thread.sleep(waitMillis);
                 } catch (InterruptedException interruptedException) {
                     Thread.currentThread().interrupt();
+                    apiLogger.logApiCallError(scene, callId, interruptedException);
                     throw new IllegalStateException("AI调用重试被中断", interruptedException);
                 }
             }
         }
+        apiLogger.logApiCallError(scene, callId, lastException);
         throw lastException == null ? new IllegalStateException(scene + " 调用失败") : lastException;
     }
 
