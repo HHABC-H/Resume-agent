@@ -160,11 +160,11 @@ public class AdminController {
             };
             String text;
             if (item.getStatus() == ResumeStatus.EVALUATED) {
-                text = String.format("用户%s完成了面试评估", item.getDisplayName() != null ? item.getDisplayName() : item.getUsername());
+                text = String.format("用户%s完成了面试评估", item.getUsername());
             } else if (item.getStatus() == ResumeStatus.QUESTIONS_READY) {
-                text = String.format("用户%s生成了面试问题", item.getDisplayName() != null ? item.getDisplayName() : item.getUsername());
+                text = String.format("用户%s生成了面试问题", item.getUsername());
             } else {
-                text = String.format("用户%s上传了简历", item.getDisplayName() != null ? item.getDisplayName() : item.getUsername());
+                text = String.format("用户%s上传了简历", item.getUsername());
             }
             activities.add(Map.of(
                     "id", activities.size() + 1,
