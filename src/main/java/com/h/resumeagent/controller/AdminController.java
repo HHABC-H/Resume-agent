@@ -12,6 +12,7 @@ import com.h.resumeagent.service.MockInterviewService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -186,6 +187,7 @@ public class AdminController {
      * 查看所有用户的简历分析历史
      */
     @GetMapping("/resume-history")
+    @Transactional(readOnly = true)
     public ResponseEntity<?> getAllResumeHistory(@RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
@@ -246,6 +248,7 @@ public class AdminController {
      * 查看所有用户的面试历史
      */
     @GetMapping("/interview-history")
+    @Transactional(readOnly = true)
     public ResponseEntity<?> getAllInterviewHistory(@RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
@@ -276,6 +279,7 @@ public class AdminController {
      * 获取面试详情
      */
     @GetMapping("/interview-history/{resumeId}")
+    @Transactional(readOnly = true)
     public ResponseEntity<?> getInterviewDetail(@PathVariable String resumeId) {
         return resumeSessionRepository.findByResumeId(resumeId)
                 .map(session -> {
