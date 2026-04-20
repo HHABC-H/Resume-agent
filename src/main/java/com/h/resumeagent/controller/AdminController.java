@@ -1,5 +1,6 @@
 package com.h.resumeagent.controller;
 
+import com.h.resumeagent.common.entity.ResumeHistoryViewEntity;
 import com.h.resumeagent.common.entity.UserEntity;
 import com.h.resumeagent.common.repository.ResumeHistoryViewRepository;
 import com.h.resumeagent.common.repository.UserRepository;
@@ -132,7 +133,14 @@ public class AdminController {
     public ResponseEntity<?> getAllResumeHistory(@RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return ResponseEntity.ok(resumeHistoryViewRepository.findAllByOrderByUpdatedAtDesc(pageable));
+        List<ResumeHistoryViewEntity> list = resumeHistoryViewRepository.findAllByOrderByUpdatedAtDesc(pageable);
+        long total = resumeHistoryViewRepository.count();
+        return ResponseEntity.ok(Map.of(
+                "content", list,
+                "totalElements", total,
+                "totalPages", (int) Math.ceil((double) total / size),
+                "currentPage", page,
+                "pageSize", size));
     }
 
     /**
