@@ -134,7 +134,7 @@ public class AdminController {
     @GetMapping("/stats")
     public ResponseEntity<?> getStats() {
         long totalUsers = userRepository.count();
-        long evaluatedCount = resumeHistoryViewRepository.countByStatus("EVALUATED");
+        long evaluatedCount = resumeHistoryViewRepository.countByStatus(ResumeStatus.EVALUATED);
         long totalResumes = resumeHistoryViewRepository.count();
 
         return ResponseEntity.ok(Map.of(

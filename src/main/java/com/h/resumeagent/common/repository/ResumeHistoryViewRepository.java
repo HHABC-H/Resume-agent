@@ -1,6 +1,7 @@
 package com.h.resumeagent.common.repository;
 
 import com.h.resumeagent.common.entity.ResumeHistoryViewEntity;
+import com.h.resumeagent.common.entity.ResumeStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -14,5 +15,5 @@ public interface ResumeHistoryViewRepository extends JpaRepository<ResumeHistory
 
     long count();
 
-    long countByStatus(String status);
+    long countByStatus(ResumeStatus status);
 }
