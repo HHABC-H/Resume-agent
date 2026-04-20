@@ -65,32 +65,7 @@ const stats = ref({
   activeUsers: 0
 })
 
-const recentActivities = ref([
-  {
-    id: 1,
-    icon: '📄',
-    text: '用户张三上传了新简历',
-    time: '2分钟前'
-  },
-  {
-    id: 2,
-    icon: '🎯',
-    text: '用户李四完成了面试评估',
-    time: '15分钟前'
-  },
-  {
-    id: 3,
-    icon: '👥',
-    text: '新用户王五注册',
-    time: '1小时前'
-  },
-  {
-    id: 4,
-    icon: '📄',
-    text: '用户赵六的简历分析完成',
-    time: '2小时前'
-  }
-])
+const recentActivities = ref<any[]>([])
 
 const loadStats = async () => {
   try {
@@ -104,8 +79,21 @@ const loadStats = async () => {
   }
 }
 
+const loadRecentActivities = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    const response = await axios.get('/admin/recent-activities', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    recentActivities.value = response.data
+  } catch (error) {
+    console.error('加载最近活动失败:', error)
+  }
+}
+
 onMounted(() => {
   loadStats()
+  loadRecentActivities()
 })
 </script>
 

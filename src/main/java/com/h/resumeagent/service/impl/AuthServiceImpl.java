@@ -140,23 +140,38 @@ public class AuthServiceImpl implements AuthService {
     public UserEntity updateUser(Long id, String email, String displayName) {
         UserEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
-        
+
         String normalizedEmail = StringUtils.trimToNull(email);
         String normalizedDisplayName = StringUtils.trimToNull(displayName);
-        
+
         if (normalizedEmail != null && !normalizedEmail.equals(user.getEmail())) {
             if (userRepository.existsByEmail(normalizedEmail)) {
                 throw new IllegalArgumentException("邮箱已存在");
             }
             user.setEmail(normalizedEmail);
         }
-        
+
         if (normalizedDisplayName != null) {
             user.setDisplayName(normalizedDisplayName);
         }
-        
+
         user.setUpdatedAt(LocalDateTime.now());
         return userRepository.save(user);
+    }
+
+    @Transactional
+    @Override
+    public void updateUserPassword(Long id, String rawPassword) {
+        UserEntity user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
+
+        if (StringUtils.isBlank(rawPassword) || rawPassword.length() < 6) {
+            throw new IllegalArgumentException("密码长度至少 6 位");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
     }
 
     @Transactional

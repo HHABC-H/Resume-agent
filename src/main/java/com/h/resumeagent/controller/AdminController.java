@@ -1,6 +1,7 @@
 package com.h.resumeagent.controller;
 
 import com.h.resumeagent.common.entity.ResumeHistoryViewEntity;
+import com.h.resumeagent.common.entity.ResumeStatus;
 import com.h.resumeagent.common.entity.UserEntity;
 import com.h.resumeagent.common.repository.ResumeHistoryViewRepository;
 import com.h.resumeagent.common.repository.UserRepository;
@@ -111,6 +112,23 @@ public class AdminController {
     }
 
     /**
+     * 更新用户密码
+     */
+    @PutMapping("/users/{id}/password")
+    public ResponseEntity<?> updateUserPassword(@PathVariable Long id, @RequestBody Map<String, String> request) {
+        try {
+            String password = request.get("password");
+            if (password == null || password.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "password is required"));
+            }
+            authService.updateUserPassword(id, password);
+            return ResponseEntity.ok(Map.of("message", "Password updated successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
      * 获取系统统计数据
      */
     @GetMapping("/stats")
@@ -124,6 +142,38 @@ public class AdminController {
                 "totalResumes", totalResumes,
                 "totalInterviews", evaluatedCount,
                 "activeUsers", totalUsers));
+    }
+
+    /**
+     * 获取最近活动
+     */
+    @GetMapping("/recent-activities")
+    public ResponseEntity<?> getRecentActivities(@RequestParam(defaultValue = "10") int limit) {
+        List<ResumeHistoryViewEntity> recent = resumeHistoryViewRepository.findAllByOrderByUpdatedAtDesc(PageRequest.of(0, limit));
+        List<Map<String, Object>> activities = new ArrayList<>();
+        for (ResumeHistoryViewEntity item : recent) {
+            String icon = switch (item.getStatus()) {
+                case ANALYZED -> "📄";
+                case QUESTIONS_READY -> "🎯";
+                case EVALUATED -> "✅";
+                default -> "📋";
+            };
+            String text;
+            if (item.getStatus() == ResumeStatus.EVALUATED) {
+                text = String.format("用户%s完成了面试评估", item.getDisplayName() != null ? item.getDisplayName() : item.getUsername());
+            } else if (item.getStatus() == ResumeStatus.QUESTIONS_READY) {
+                text = String.format("用户%s生成了面试问题", item.getDisplayName() != null ? item.getDisplayName() : item.getUsername());
+            } else {
+                text = String.format("用户%s上传了简历", item.getDisplayName() != null ? item.getDisplayName() : item.getUsername());
+            }
+            activities.add(Map.of(
+                    "id", activities.size() + 1,
+                    "icon", icon,
+                    "text", text,
+                    "time", item.getUpdatedAt() != null ? item.getUpdatedAt().toString() : item.getCreatedAt().toString()
+            ));
+        }
+        return ResponseEntity.ok(activities);
     }
 
     /**

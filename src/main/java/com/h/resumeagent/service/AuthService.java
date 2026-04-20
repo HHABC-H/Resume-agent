@@ -19,6 +19,8 @@ public interface AuthService {
 
     UserEntity updateUser(Long id, String email, String displayName);
 
+    void updateUserPassword(Long id, String rawPassword);
+
     void updateUserStatus(Long id, int status);
 
     void updateUserRole(Long id, String role);
