@@ -9,7 +9,11 @@ import java.util.List;
 @Mapper
 public interface ResumeHistoryMapper {
 
-    List<ResumeHistoryItem> selectRecentHistory(@Param("limit") int limit);
+    List<ResumeHistoryItem> selectRecentHistory(@Param("offset") int offset, @Param("limit") int limit);
 
-    List<ResumeHistoryItem> selectRecentHistoryByUserId(@Param("userId") Long userId, @Param("limit") int limit);
+    List<ResumeHistoryItem> selectRecentHistoryByUserId(@Param("userId") Long userId, @Param("offset") int offset, @Param("limit") int limit);
+
+    long countRecentHistory();
+
+    long countRecentHistoryByUserId(@Param("userId") Long userId);
 }

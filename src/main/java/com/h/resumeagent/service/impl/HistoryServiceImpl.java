@@ -1,5 +1,6 @@
 package com.h.resumeagent.service.impl;
 
+import com.h.resumeagent.common.dto.PageResponse;
 import com.h.resumeagent.common.dto.ResumeData;
 import com.h.resumeagent.common.dto.ResumeHistoryItem;
 import com.h.resumeagent.common.entity.ResumeSessionEntity;
@@ -63,8 +64,8 @@ public class HistoryServiceImpl implements HistoryService {
         if (historyViewAvailable && resumeHistoryMapper != null) {
             try {
                 List<ResumeHistoryItem> rows = userId == null
-                        ? resumeHistoryMapper.selectRecentHistory(safeLimit)
-                        : resumeHistoryMapper.selectRecentHistoryByUserId(userId, safeLimit);
+                        ? resumeHistoryMapper.selectRecentHistory(0, safeLimit)
+                        : resumeHistoryMapper.selectRecentHistoryByUserId(userId, 0, safeLimit);
                 return rows.stream().map(this::normalizeHistoryItem).collect(Collectors.toList());
             } catch (RuntimeException ex) {
                 if (isHistoryViewSchemaException(ex)) {
@@ -80,6 +81,62 @@ public class HistoryServiceImpl implements HistoryService {
                 ? resumeSessionRepository.findAllByOrderByUpdatedAtDesc(page)
                 : resumeSessionRepository.findByUserIdOrderByUpdatedAtDesc(userId, page);
         return sessions.stream().map(this::toHistoryItem).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<ResumeHistoryItem> getResumeHistoryPage(int page, int size) {
+        return getResumeHistoryPage(null, page, size);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<ResumeHistoryItem> getResumeHistoryPage(Long userId, int page, int size) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int offset = safePage * safeSize;
+
+        if (!isPersistenceEnabled()) {
+            List<ResumeHistoryItem> content = resumeStorage.values().stream()
+                    .sorted(Comparator.comparing(ResumeData::getUpdatedAt,
+                            Comparator.nullsLast(Comparator.reverseOrder())))
+                    .skip(offset)
+                    .limit(safeSize)
+                    .map(this::toHistoryItem)
+                    .collect(Collectors.toList());
+            long total = resumeStorage.size();
+            return new PageResponse<>(content, safePage, safeSize, total);
+        }
+
+        if (historyViewAvailable && resumeHistoryMapper != null) {
+            try {
+                List<ResumeHistoryItem> rows = userId == null
+                        ? resumeHistoryMapper.selectRecentHistory(offset, safeSize)
+                        : resumeHistoryMapper.selectRecentHistoryByUserId(userId, offset, safeSize);
+                long total = userId == null
+                        ? resumeHistoryMapper.countRecentHistory()
+                        : resumeHistoryMapper.countRecentHistoryByUserId(userId);
+                List<ResumeHistoryItem> content = rows.stream().map(this::normalizeHistoryItem).collect(Collectors.toList());
+                return new PageResponse<>(content, safePage, safeSize, total);
+            } catch (RuntimeException ex) {
+                if (isHistoryViewSchemaException(ex)) {
+                    historyViewAvailable = false;
+                    logger.warn("历史视图查询失败，已降级为 resume_session 查询: {}", shortMessage(ex));
+                } else {
+                    throw ex;
+                }
+            }
+        }
+
+        PageRequest pageRequest = PageRequest.of(safePage, safeSize);
+        List<ResumeSessionEntity> sessions = userId == null
+                ? resumeSessionRepository.findAllByOrderByUpdatedAtDesc(pageRequest)
+                : resumeSessionRepository.findByUserIdOrderByUpdatedAtDesc(userId, pageRequest);
+        List<ResumeHistoryItem> content = sessions.stream().map(this::toHistoryItem).collect(Collectors.toList());
+        long total = userId == null
+                ? resumeSessionRepository.count()
+                : resumeSessionRepository.findByUserIdOrderByUpdatedAtDesc(userId, pageRequest).size();
+        return new PageResponse<>(content, safePage, safeSize, total);
     }
 
     private boolean isPersistenceEnabled() {

@@ -27,7 +27,7 @@
             updated_at AS updatedAt
         FROM v_resume_history
         ORDER BY updated_at DESC
-        LIMIT #{limit}
+        LIMIT #{offset}, #{limit}
     </select>
 
     <select id="selectRecentHistoryByUserId" resultMap="ResumeHistoryItemMap">
@@ -43,7 +43,15 @@
         FROM v_resume_history
         WHERE user_id = #{userId}
         ORDER BY updated_at DESC
-        LIMIT #{limit}
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countRecentHistory" resultType="long">
+        SELECT COUNT(*) FROM v_resume_history
+    </select>
+
+    <select id="countRecentHistoryByUserId" resultType="long">
+        SELECT COUNT(*) FROM v_resume_history WHERE user_id = #{userId}
     </select>
 
 </mapper>

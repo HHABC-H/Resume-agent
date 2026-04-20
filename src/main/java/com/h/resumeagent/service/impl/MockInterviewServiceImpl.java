@@ -2,6 +2,7 @@ package com.h.resumeagent.service.impl;
 
 import com.h.resumeagent.common.dto.InterviewEvaluation;
 import com.h.resumeagent.common.dto.InterviewQuestions;
+import com.h.resumeagent.common.dto.PageResponse;
 import com.h.resumeagent.common.dto.ResumeData;
 import com.h.resumeagent.common.dto.ResumeHistoryItem;
 import com.h.resumeagent.common.dto.ResumeScoreResult;
@@ -43,7 +44,7 @@ public class MockInterviewServiceImpl implements MockInterviewService {
     public ResumeScoreResult scoreResume(String resumeText) throws IOException {
         return resumeService.scoreResume(resumeText);
     }
-    
+
     @Override
     public ResumeScoreResult scoreResume(String resumeText, String positionType) throws IOException {
         return resumeService.scoreResume(resumeText, positionType);
@@ -84,7 +85,7 @@ public class MockInterviewServiceImpl implements MockInterviewService {
     public InterviewQuestions generateInterviewQuestions(String resumeText, String positionType) throws com.fasterxml.jackson.core.JsonProcessingException {
         return interviewService.generateInterviewQuestions(resumeText, positionType);
     }
-    
+
     @Override
     public InterviewQuestions generateInterviewQuestions(String resumeText, String positionType, int questionCount) throws com.fasterxml.jackson.core.JsonProcessingException {
         return interviewService.generateInterviewQuestions(resumeText, positionType, questionCount);
@@ -107,7 +108,7 @@ public class MockInterviewServiceImpl implements MockInterviewService {
             Map<Integer, String> answers) throws com.fasterxml.jackson.core.JsonProcessingException {
         return interviewService.evaluateAnswers(resumeText, positionType, questions, answers);
     }
-    
+
     @Override
     public InterviewEvaluation evaluateAnswers(
             String resumeText,
@@ -137,6 +138,16 @@ public class MockInterviewServiceImpl implements MockInterviewService {
     @Override
     public List<ResumeHistoryItem> getRecentResumeHistory(Long userId, int limit) {
         return historyService.getRecentResumeHistory(userId, limit);
+    }
+
+    @Override
+    public PageResponse<ResumeHistoryItem> getResumeHistoryPage(int page, int size) {
+        return historyService.getResumeHistoryPage(page, size);
+    }
+
+    @Override
+    public PageResponse<ResumeHistoryItem> getResumeHistoryPage(Long userId, int page, int size) {
+        return historyService.getResumeHistoryPage(userId, page, size);
     }
 
     // 职位类型相关方法

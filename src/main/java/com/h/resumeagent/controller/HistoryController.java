@@ -1,5 +1,7 @@
 package com.h.resumeagent.controller;
 
+import com.h.resumeagent.common.dto.PageResponse;
+import com.h.resumeagent.common.dto.ResumeHistoryItem;
 import com.h.resumeagent.interceptor.AuthTokenInterceptor;
 import com.h.resumeagent.service.AuthService;
 import com.h.resumeagent.service.MockInterviewService;
@@ -40,7 +42,7 @@ public class HistoryController {
     }
 
     /**
-     * 获取历史记录数据
+     * 获取历史记录数据（旧的limit方式，保持向后兼容）
      */
     @GetMapping("/data")
     @ResponseBody
@@ -50,6 +52,23 @@ public class HistoryController {
             return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
         }
         return ResponseEntity.ok(interviewService.getRecentResumeHistory(userId, limit));
+    }
+
+    /**
+     * 分页获取历史记录
+     */
+    @GetMapping("/page")
+    @ResponseBody
+    public ResponseEntity<?> getHistoryPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            HttpServletRequest request) {
+        Long userId = currentUserId(request);
+        if (userId == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+        }
+        PageResponse<ResumeHistoryItem> pageResponse = interviewService.getResumeHistoryPage(userId, page, size);
+        return ResponseEntity.ok(pageResponse);
     }
 
     private Long currentUserId(HttpServletRequest request) {
