@@ -209,7 +209,33 @@ public class AdminController {
     public ResponseEntity<?> getAllInterviewHistory(@RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return ResponseEntity.ok(resumeHistoryViewRepository.findAllByOrderByUpdatedAtDesc(pageable));
+        List<ResumeHistoryViewEntity> list = resumeHistoryViewRepository.findAllByOrderByUpdatedAtDesc(pageable);
+        long total = resumeHistoryViewRepository.count();
+        return ResponseEntity.ok(Map.of(
+                "content", list,
+                "totalElements", total,
+                "totalPages", (int) Math.ceil((double) total / size),
+                "currentPage", page,
+                "pageSize", size));
+    }
+
+    /**
+     * 获取面试详情
+     */
+    @GetMapping("/interview-history/{resumeId}")
+    public ResponseEntity<?> getInterviewDetail(@PathVariable String resumeId) {
+        return resumeHistoryViewRepository.findById(resumeId)
+                .map(entity -> ResponseEntity.ok(Map.of(
+                        "resumeId", entity.getResumeId(),
+                        "userId", entity.getUserId(),
+                        "status", entity.getStatus(),
+                        "positionType", entity.getPositionType(),
+                        "resumeOverallScore", entity.getResumeOverallScore(),
+                        "evaluationOverallScore", entity.getEvaluationOverallScore(),
+                        "questionCount", entity.getQuestionCount(),
+                        "createdAt", entity.getCreatedAt(),
+                        "updatedAt", entity.getUpdatedAt())))
+                .orElse(ResponseEntity.notFound().build());
     }
 
     /**
