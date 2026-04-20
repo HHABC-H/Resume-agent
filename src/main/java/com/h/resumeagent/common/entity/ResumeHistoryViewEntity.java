@@ -26,9 +26,6 @@ public class ResumeHistoryViewEntity {
     @Column(name = "user_id")
     private Long userId;
 
-    @Column(name = "username")
-    private String username;
-
     @Id
     @Column(name = "resume_id", length = 64, nullable = false)
     private String resumeId;
