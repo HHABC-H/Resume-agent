@@ -31,12 +31,3 @@ public interface ForumService {
 
     List<ForumCategoryDTO> getCategories();
 }
-
-@lombok.Data
-@lombok.Builder
-class ForumCategoryDTO {
-    private Long id;
-    private String name;
-    private String description;
-    private Integer postCount;
-}

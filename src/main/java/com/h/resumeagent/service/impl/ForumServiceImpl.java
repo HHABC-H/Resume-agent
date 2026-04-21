@@ -4,7 +4,7 @@ import com.h.resumeagent.common.dto.*;
 import com.h.resumeagent.common.entity.*;
 import com.h.resumeagent.common.repository.*;
 import com.h.resumeagent.service.ForumService;
-import com.h.resumeagent.service.UserRepository;
+import com.h.resumeagent.common.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
