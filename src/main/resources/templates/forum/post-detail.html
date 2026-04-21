@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${post.title} + ' - 论坛'">帖子详情</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        .header { background: #fff; padding: 15px 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header a { color: #007bff; text-decoration: none; }
+        .post { background: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .post h1 { font-size: 24px; margin-bottom: 15px; color: #333; }
+        .post .meta { color: #999; font-size: 14px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        .post .meta span { margin-right: 20px; }
+        .post .content { font-size: 16px; line-height: 1.8; color: #333; }
+        .post .actions { margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; display: flex; gap: 15px; }
+        .post .action-btn { padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 14px; }
+        .post .action-btn:hover { background: #f5f5f5; }
+        .post .action-btn.liked { color: #007bff; border-color: #007bff; }
+        .post .action-btn.disliked { color: #dc3545; border-color: #dc3545; }
+        .comments { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .comments h3 { margin-bottom: 20px; color: #333; }
+        .comment-form { margin-bottom: 30px; }
+        .comment-form textarea { width: 100%; padding: 15px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; min-height: 100px; font-size: 14px; }
+        .comment-form button { margin-top: 10px; padding: 10px 30px; background: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+        .comment-item { padding: 20px 0; border-bottom: 1px solid #eee; }
+        .comment-item:last-child { border-bottom: none; }
+        .comment-item .comment-meta { color: #999; font-size: 13px; margin-bottom: 10px; }
+        .comment-item .comment-meta span { margin-right: 15px; }
+        .comment-item .comment-content { color: #333; line-height: 1.6; }
+        .comment-item .comment-actions { margin-top: 10px; display: flex; gap: 10px; }
+        .comment-item .comment-action { color: #999; font-size: 13px; cursor: pointer; }
+        .comment-item .comment-action:hover { color: #007bff; }
+        .comment-item .reply { margin-left: 40px; margin-top: 15px; padding-left: 15px; border-left: 2px solid #eee; }
+        .back-link { display: inline-block; margin-bottom: 15px; color: #007bff; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/api/forum">&larr; 返回论坛</a>
+        </div>
+        <div class="post">
+            <h1>
+                <span th:if="${post.status == 1}" style="background: #ffc107; color: #000; padding: 2px 8px; border-radius: 4px; font-size: 14px; margin-right: 10px;">精华</span>
+                <span th:if="${post.status == 2}" style="background: #dc3545; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 14px; margin-right: 10px;">置顶</span>
+                <span th:text="${post.title}">帖子标题</span>
+            </h1>
+            <div class="meta">
+                <span th:text="${post.authorName}">作者</span>
+                <span th:text="${post.categoryName}">分类</span>
+                <span th:text="${#temporals.format(post.createdAt, 'yyyy-MM-dd HH:mm')}">时间</span>
+                <span>阅读 <span th:text="${post.viewCount}">0</span></span>
+                <span>评论 <span th:text="${post.commentCount}">0</span></span>
+            </div>
+            <div class="content" th:text="${post.content}">帖子内容</div>
+            <div class="actions">
+                <button class="action-btn" onclick="likePost()">👍 赞 (<span th:text="${post.likeCount}">0</span>)</button>
+                <button class="action-btn" onclick="dislikePost()">👎 踩 (<span th:text="${post.dislikeCount}">0</span>)</button>
+            </div>
+        </div>
+        <div class="comments">
+            <h3>评论 (<span th:text="${#lists.size(post.comments)}">0</span>)</h3>
+            <div class="comment-form">
+                <textarea id="commentContent" placeholder="写下你的评论..."></textarea>
+                <button onclick="submitComment()">发表评论</button>
+            </div>
+            <div class="comment-list">
+                <div th:each="comment : ${post.comments}" class="comment-item">
+                    <div class="comment-meta">
+                        <span th:text="${comment.authorName}">用户</span>
+                        <span th:text="${#temporals.format(comment.createdAt, 'yyyy-MM-dd HH:mm')}">时间</span>
+                    </div>
+                    <div class="comment-content" th:text="${comment.content}">评论内容</div>
+                    <div class="comment-actions">
+                        <span class="comment-action" onclick="likeComment(${comment.id})">👍 <span th:text="${comment.likeCount}">0</span></span>
+                        <span class="comment-action" onclick="dislikeComment(${comment.id})">👎 <span th:text="${comment.dislikeCount}">0</span></span>
+                        <span class="comment-action" onclick="showReplyForm(${comment.id})">回复</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script th:inline="javascript">
+        const postId = [[${post.id}]];
+        
+        function likePost() {
+            fetch('/api/forum/post/' + postId + '/like', { method: 'POST' })
+                .then(r => r.json())
+                .then(() => location.reload());
+        }
+        
+        function dislikePost() {
+            fetch('/api/forum/post/' + postId + '/dislike', { method: 'POST' })
+                .then(r => r.json())
+                .then(() => location.reload());
+        }
+        
+        function submitComment() {
+            const content = document.getElementById('commentContent').value;
+            fetch('/api/forum/comment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ postId: postId, content: content })
+            }).then(r => r.json()).then(() => location.reload());
+        }
+        
+        function likeComment(id) {
+            fetch('/api/forum/comment/' + id + '/like', { method: 'POST' })
+                .then(r => r.json()).then(() => location.reload());
+        }
+        
+        function dislikeComment(id) {
+            fetch('/api/forum/comment/' + id + '/dislike', { method: 'POST' })
+                .then(r => r.json()).then(() => location.reload());
+        }
+    </script>
+</body>
+</html>
