@@ -36,7 +36,7 @@
             <tr v-for="item in interviewHistory" :key="item.resumeId" class="interview-row">
               <td>{{ item.resumeId }}</td>
               <td>{{ item.userId || '-' }}</td>
-              <td>{{ item.positionType || '-' }}</td>
+              <td>{{ getPositionTypeText(item.positionType) }}</td>
               <td>
                 <span :class="['status-badge', getStatusClass(item.status)]">
                   {{ getStatusText(item.status) }}
@@ -59,12 +59,11 @@
       </div>
     </div>
 
-    <!-- 详情弹窗 -->
     <div v-if="showDetail" class="modal-overlay" @click.self="closeDetail">
       <div class="modal">
+        <button @click="closeDetail" class="floating-close-btn" aria-label="close">&times;</button>
         <div class="modal-header">
           <h3>面试详情</h3>
-          <button @click="closeDetail" class="close-btn">&times;</button>
         </div>
         <div class="modal-body">
           <div class="detail-item">
@@ -77,7 +76,7 @@
           </div>
           <div class="detail-item">
             <label>职位类型:</label>
-            <span>{{ detailData.positionType || '-' }}</span>
+            <span>{{ getPositionTypeText(detailData.positionType) }}</span>
           </div>
           <div class="detail-item">
             <label>状态:</label>
@@ -105,6 +104,58 @@
             <label>更新时间:</label>
             <span>{{ formatDate(detailData.updatedAt) }}</span>
           </div>
+
+          <div class="detail-section" v-if="detailData.evaluation">
+            <h4>面试评估结果</h4>
+            <div class="detail-item">
+              <label>总分:</label>
+              <span>{{ detailData.evaluation.overallScore || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>总体反馈:</label>
+              <span class="multiline">{{ detailData.evaluation.overallFeedback || '-' }}</span>
+            </div>
+
+            <div v-if="detailData.evaluation.categoryScores?.length" class="sub-section">
+              <h5>分类得分</h5>
+              <div class="score-grid">
+                <div v-for="(item, index) in detailData.evaluation.categoryScores" :key="index" class="score-card">
+                  <div class="score-title">{{ item.category || '-' }}</div>
+                  <div class="score-value">{{ item.score ?? '-' }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sub-section">
+              <h5>问题 / 用户答案 / 评语</h5>
+              <div
+                v-for="(item, index) in sortedQuestionDetails(detailData.evaluation.questionDetails || [])"
+                :key="index"
+                class="qa-card"
+              >
+                <div class="qa-header">
+                  <span>问题 {{ (item.questionIndex ?? index) + 1 }}</span>
+                  <span>得分: {{ item.score ?? '-' }}</span>
+                </div>
+                <div class="qa-line">
+                  <label>问题:</label>
+                  <p>{{ item.question || '-' }}</p>
+                </div>
+                <div class="qa-line">
+                  <label>用户答案:</label>
+                  <p>{{ item.userAnswer || '-' }}</p>
+                </div>
+                <div class="qa-line">
+                  <label>评语:</label>
+                  <p>{{ item.feedback || '-' }}</p>
+                </div>
+              </div>
+              <div v-if="!detailData.evaluation.questionDetails?.length" class="empty-subsection">
+                暂无问题明细
+              </div>
+            </div>
+          </div>
+          <div v-else class="empty-subsection">该记录暂无面试评估结果</div>
         </div>
       </div>
     </div>
@@ -173,22 +224,37 @@ const closeDetail = () => {
   showDetail.value = false
 }
 
+const sortedQuestionDetails = (questionDetails: any[]) => {
+  return [...(questionDetails || [])].sort(
+    (a, b) => (a?.questionIndex ?? 0) - (b?.questionIndex ?? 0)
+  )
+}
+
 const getStatusClass = (status: string) => {
   const statusMap: Record<string, string> = {
-    'ANALYZED': 'analyzed',
-    'QUESTIONS_READY': 'questions-ready',
-    'EVALUATED': 'evaluated'
+    ANALYZED: 'analyzed',
+    QUESTIONS_READY: 'questions-ready',
+    EVALUATED: 'evaluated'
   }
   return statusMap[status] || 'default'
 }
 
 const getStatusText = (status: string) => {
   const textMap: Record<string, string> = {
-    'ANALYZED': '已分析',
-    'QUESTIONS_READY': '已生成问题',
-    'EVALUATED': '已评估'
+    ANALYZED: '已分析',
+    QUESTIONS_READY: '已生成问题',
+    EVALUATED: '已评估'
   }
   return textMap[status] || status || '-'
+}
+
+const getPositionTypeText = (positionType: string) => {
+  const textMap: Record<string, string> = {
+    BACKEND_JAVA: '后端 Java',
+    FRONTEND: '前端',
+    ALGORITHM: '算法'
+  }
+  return textMap[positionType] || positionType || '-'
 }
 
 const formatDate = (dateStr: string) => {
@@ -363,40 +429,76 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-/* 弹窗样式 */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(10, 20, 32, 0.52);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 1rem;
 }
 
 .modal {
-  background: white;
-  border-radius: 12px;
-  width: 500px;
-  max-width: 90%;
-  max-height: 80vh;
-  overflow: auto;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border-radius: 16px;
+  border: 1px solid #dce7f2;
+  width: 920px;
+  max-width: 92%;
+  max-height: 85vh;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 56px rgba(11, 36, 63, 0.25);
 }
 
 .modal-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 1.1rem 1.5rem;
+  border-bottom: 1px solid #e7eef6;
+  background: linear-gradient(90deg, #ffffff 0%, #eef5ff 100%);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .modal-header h3 {
   margin: 0;
-  color: #2c3e50;
+  color: #123252;
+  font-size: 1.45rem;
+  letter-spacing: 0.4px;
+}
+
+.floating-close-btn {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #37526f;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(25, 61, 98, 0.24);
+  z-index: 4;
+  transition: all 0.2s ease;
+}
+
+.floating-close-btn:hover {
+  background: #f1f6ff;
+  color: #0e2740;
+  transform: translateY(-1px);
 }
 
 .close-btn {
@@ -412,23 +514,25 @@ onMounted(() => {
 }
 
 .modal-body {
-  padding: 1.5rem;
+  padding: 1.25rem 1.5rem 1.5rem;
+  overflow: auto;
+  max-height: calc(85vh - 74px);
 }
 
 .detail-item {
   display: flex;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.detail-item:last-child {
-  border-bottom: none;
+  padding: 0.8rem 0.9rem;
+  margin-bottom: 0.55rem;
+  border: 1px solid #eaf1f8;
+  border-radius: 10px;
+  background: #ffffff;
 }
 
 .detail-item label {
-  width: 120px;
-  color: #666;
+  width: 128px;
+  color: #4d6782;
   font-weight: 500;
+  flex-shrink: 0;
 }
 
 .detail-item span {
@@ -436,7 +540,103 @@ onMounted(() => {
   color: #2c3e50;
 }
 
-/* 响应式设计 */
+.multiline {
+  white-space: pre-wrap;
+}
+
+.detail-section {
+  margin-top: 1.3rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: #f2f7fd;
+  border: 1px solid #ddeaf8;
+}
+
+.detail-section h4 {
+  margin: 0 0 0.9rem 0;
+  color: #13385c;
+  font-size: 1.12rem;
+}
+
+.sub-section {
+  margin-top: 1.05rem;
+  padding-top: 0.2rem;
+}
+
+.sub-section h5 {
+  margin: 0 0 0.6rem 0;
+  color: #2a4f73;
+}
+
+.score-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.6rem;
+}
+
+.score-card {
+  background: #f8f9fa;
+  border: 1px solid #edf0f3;
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+}
+
+.score-title {
+  color: #666;
+  font-size: 0.82rem;
+}
+
+.score-value {
+  color: #2c3e50;
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-top: 0.2rem;
+}
+
+.qa-card {
+  border: 1px solid #dae7f6;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0.9rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 4px 14px rgba(23, 68, 111, 0.06);
+}
+
+.qa-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #2c3e50;
+}
+
+.qa-line {
+  margin-bottom: 0.45rem;
+}
+
+.qa-line:last-child {
+  margin-bottom: 0;
+}
+
+.qa-line label {
+  display: block;
+  color: #666;
+  font-size: 0.82rem;
+  margin-bottom: 0.2rem;
+}
+
+.qa-line p {
+  margin: 0;
+  color: #2c3e50;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.empty-subsection {
+  color: #666;
+  padding: 0.4rem 0;
+}
+
 @media (max-width: 768px) {
   .interview-management {
     padding: 1rem;
@@ -445,6 +645,25 @@ onMounted(() => {
   .card-header {
     flex-direction: column;
     gap: 1rem;
+  }
+
+  .detail-item {
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .detail-item label {
+    width: auto;
+  }
+
+  .modal {
+    width: 96%;
+    max-height: 88vh;
+  }
+
+  .floating-close-btn {
+    top: 0.7rem;
+    right: 0.7rem;
   }
 }
 </style>

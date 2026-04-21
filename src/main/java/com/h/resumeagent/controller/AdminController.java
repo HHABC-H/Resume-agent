@@ -1,5 +1,6 @@
 package com.h.resumeagent.controller;
 
+import com.h.resumeagent.common.dto.ResumeData;
 import com.h.resumeagent.common.entity.ResumeHistoryViewEntity;
 import com.h.resumeagent.common.entity.ResumeSessionEntity;
 import com.h.resumeagent.common.entity.ResumeStatus;
@@ -16,9 +17,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/admin")
@@ -194,13 +198,14 @@ public class AdminController {
         List<ResumeSessionEntity> sessions = resumeSessionRepository.findAllByOrderByUpdatedAtDesc(pageable);
         List<Map<String, Object>> content = sessions.stream().map(session -> {
             Map<String, Object> item = new HashMap<>();
+            item.put("id", session.getId());
             item.put("resumeId", session.getResumeId());
             item.put("userId", session.getUserId());
             item.put("status", session.getStatus());
             item.put("positionType", session.getPositionType());
             item.put("resumeOverallScore", session.getResumeOverallScore());
             item.put("evaluationOverallScore", session.getEvaluationOverallScore());
-            item.put("questionCount", session.getInterviewQuestions() != null ? session.getInterviewQuestions().size() : 0);
+            item.put("questionCount", countInterviewQuestions(session));
             item.put("createdAt", session.getCreatedAt());
             item.put("updatedAt", session.getUpdatedAt());
             return item;
@@ -218,19 +223,36 @@ public class AdminController {
      * 导出简历分析数据
      */
     @GetMapping("/resume-history/export")
+    @Transactional(readOnly = true)
     public ResponseEntity<?> exportResumeHistory() {
         List<ResumeSessionEntity> sessions = resumeSessionRepository.findAll();
+        Map<Long, UserEntity> userMap = userRepository.findAllById(
+                sessions.stream()
+                        .map(ResumeSessionEntity::getUserId)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet()))
+                .stream()
+                .collect(Collectors.toMap(UserEntity::getId, user -> user));
+
         StringBuilder csv = new StringBuilder();
-        csv.append("简历ID,用户ID,职位类型,状态,简历评分,面试评分,问题数量,创建时间,更新时间\n");
+        csv.append('\uFEFF');
+        csv.append("会话ID,简历ID,用户ID,用户名,显示名称,邮箱,岗位类型,状态,简历评分,面试评分,问题数量,简历摘要,简历文本,创建时间,更新时间\n");
         for (ResumeSessionEntity session : sessions) {
-            csv.append(String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
-                    nullToEmpty(session.getResumeId()),
+            UserEntity user = session.getUserId() == null ? null : userMap.get(session.getUserId());
+            csv.append(csvRow(
+                    session.getId(),
+                    session.getResumeId(),
                     session.getUserId(),
-                    nullToEmpty(session.getPositionType()),
-                    session.getStatus(),
+                    user == null ? null : user.getUsername(),
+                    user == null ? null : user.getDisplayName(),
+                    user == null ? null : user.getEmail(),
+                    toPositionTypeLabel(session.getPositionType()),
+                    toStatusLabel(session.getStatus()),
                     session.getResumeOverallScore(),
                     session.getEvaluationOverallScore(),
-                    session.getInterviewQuestions() != null ? session.getInterviewQuestions().size() : 0,
+                    countInterviewQuestions(session),
+                    session.getResumeSummary(),
+                    session.getResumeText(),
                     session.getCreatedAt(),
                     session.getUpdatedAt()));
         }
@@ -242,6 +264,39 @@ public class AdminController {
 
     private String nullToEmpty(Object obj) {
         return obj == null ? "" : obj.toString();
+    }
+
+    private String csvRow(Object... fields) {
+        return Arrays.stream(fields).map(this::csvEscape).collect(Collectors.joining(",")) + "\n";
+    }
+
+    private String csvEscape(Object value) {
+        String text = nullToEmpty(value);
+        boolean needQuote = text.contains(",") || text.contains("\"") || text.contains("\n") || text.contains("\r");
+        String escaped = text.replace("\"", "\"\"");
+        return needQuote ? "\"" + escaped + "\"" : escaped;
+    }
+
+    private String toPositionTypeLabel(String positionType) {
+        return nullToEmpty(interviewService.displayPositionType(positionType));
+    }
+
+    private String toStatusLabel(ResumeStatus status) {
+        if (status == null) {
+            return "";
+        }
+        return switch (status) {
+            case ANALYZED -> "已分析";
+            case QUESTIONS_READY -> "已生成问题";
+            case EVALUATED -> "已评估";
+        };
+    }
+
+    private long countInterviewQuestions(ResumeSessionEntity session) {
+        if (session == null || session.getId() == null) {
+            return 0L;
+        }
+        return resumeSessionRepository.countInterviewQuestionsBySessionId(session.getId());
     }
 
     /**
@@ -261,7 +316,7 @@ public class AdminController {
             item.put("positionType", session.getPositionType());
             item.put("resumeOverallScore", session.getResumeOverallScore());
             item.put("evaluationOverallScore", session.getEvaluationOverallScore());
-            item.put("questionCount", session.getInterviewQuestions() != null ? session.getInterviewQuestions().size() : 0);
+            item.put("questionCount", countInterviewQuestions(session));
             item.put("createdAt", session.getCreatedAt());
             item.put("updatedAt", session.getUpdatedAt());
             return item;
@@ -281,6 +336,11 @@ public class AdminController {
     @GetMapping("/interview-history/{resumeId}")
     @Transactional(readOnly = true)
     public ResponseEntity<?> getInterviewDetail(@PathVariable String resumeId) {
+        ResumeData resumeData = interviewService.getResumeById(resumeId);
+        if (resumeData == null) {
+            return ResponseEntity.notFound().build();
+        }
+
         return resumeSessionRepository.findByResumeId(resumeId)
                 .map(session -> {
                     Map<String, Object> detail = new HashMap<>();
@@ -290,9 +350,11 @@ public class AdminController {
                     detail.put("positionType", session.getPositionType());
                     detail.put("resumeOverallScore", session.getResumeOverallScore());
                     detail.put("evaluationOverallScore", session.getEvaluationOverallScore());
-                    detail.put("questionCount", session.getInterviewQuestions() != null ? session.getInterviewQuestions().size() : 0);
+                    detail.put("questionCount", countInterviewQuestions(session));
                     detail.put("createdAt", session.getCreatedAt());
                     detail.put("updatedAt", session.getUpdatedAt());
+                    detail.put("questions", resumeData.getQuestions());
+                    detail.put("evaluation", resumeData.getEvaluation());
                     return ResponseEntity.ok(detail);
                 })
                 .orElse(ResponseEntity.notFound().build());

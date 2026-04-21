@@ -36,10 +36,10 @@
               <td>{{ item.id }}</td>
               <td>{{ item.userId || '-' }}</td>
               <td>{{ item.resumeId }}</td>
-              <td>{{ item.positionType }}</td>
+              <td>{{ getPositionTypeText(item.positionType) }}</td>
               <td>
                 <span :class="['status-badge', getStatusClass(item.status)]">
-                  {{ item.status }}
+                  {{ getStatusText(item.status) }}
                 </span>
               </td>
               <td>{{ item.resumeOverallScore || '-' }}</td>
@@ -74,7 +74,10 @@ const loadResumeHistory = async () => {
     const response = await axios.get('/admin/resume-history', {
       headers: { Authorization: `Bearer ${token}` }
     })
-    resumeHistory.value = response.data
+    const payload = response.data
+    resumeHistory.value = Array.isArray(payload)
+      ? payload
+      : (Array.isArray(payload?.content) ? payload.content : [])
   } catch (err: any) {
     resumeHistoryError.value = err.response?.data?.error || '加载简历历史失败'
   } finally {
@@ -97,7 +100,20 @@ const exportResumeHistory = async () => {
     link.click()
     document.body.removeChild(link)
   } catch (err: any) {
-    alert('导出失败: ' + (err.response?.data?.error || '未知错误'))
+    let message = '未知错误'
+    const responseData = err?.response?.data
+    if (responseData instanceof Blob) {
+      try {
+        const text = await responseData.text()
+        const parsed = JSON.parse(text)
+        message = parsed?.error || text || message
+      } catch {
+        message = err?.message || message
+      }
+    } else {
+      message = responseData?.error || err?.message || message
+    }
+    alert(`导出失败: ${message}`)
   }
 }
 
@@ -108,6 +124,24 @@ const getStatusClass = (status: string) => {
     'EVALUATED': 'evaluated'
   }
   return statusMap[status] || 'default'
+}
+
+const getPositionTypeText = (positionType: string) => {
+  const textMap: Record<string, string> = {
+    'BACKEND_JAVA': '\u540e\u7aef Java',
+    'FRONTEND': '\u524d\u7aef',
+    'ALGORITHM': '\u7b97\u6cd5'
+  }
+  return textMap[positionType] || positionType || '-'
+}
+
+const getStatusText = (status: string) => {
+  const textMap: Record<string, string> = {
+    'ANALYZED': '\u5df2\u5206\u6790',
+    'QUESTIONS_READY': '\u5df2\u751f\u6210\u95ee\u9898',
+    'EVALUATED': '\u5df2\u8bc4\u4f30'
+  }
+  return textMap[status] || status || '-'
 }
 
 const formatDate = (dateStr: string) => {
