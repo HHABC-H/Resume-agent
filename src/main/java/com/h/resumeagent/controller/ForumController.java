@@ -159,6 +159,12 @@ public class ForumController {
         return "forum/essences";
     }
 
+    @GetMapping("/categories")
+    @ResponseBody
+    public ResponseEntity<?> getCategories() {
+        return ResponseEntity.ok(forumService.getCategories());
+    }
+
     @PostMapping("/admin/essence/{id}")
     @ResponseBody
     public ResponseEntity<?> setEssence(@PathVariable Long id, HttpServletRequest request) {

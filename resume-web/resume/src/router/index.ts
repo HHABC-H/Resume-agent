@@ -47,6 +47,31 @@ const routes = [
     component: () => import('../views/user/Profile.vue')
   },
   {
+    path: '/forum',
+    name: 'forumIndex',
+    component: () => import('../views/forum/Index.vue')
+  },
+  {
+    path: '/forum/post/:id',
+    name: 'forumPost',
+    component: () => import('../views/forum/PostDetail.vue')
+  },
+  {
+    path: '/forum/publish',
+    name: 'forumPublish',
+    component: () => import('../views/forum/Publish.vue')
+  },
+  {
+    path: '/forum/category/:id',
+    name: 'forumCategory',
+    component: () => import('../views/forum/Category.vue')
+  },
+  {
+    path: '/forum/essences',
+    name: 'forumEssences',
+    component: () => import('../views/forum/Essences.vue')
+  },
+  {
     path: '/admin',
     name: 'admin',
     component: () => import('../views/admin/AdminLayout.vue'),
@@ -95,19 +120,44 @@ router.beforeEach((to, from) => {
   const token = localStorage.getItem('token')
   const role = localStorage.getItem('role')
 
-  // 公开路由（不需要登录）
-  const publicRoutes = ['/', '/login', '/register']
+  // 公开路由（不需要登录）- 精确匹配
+  const publicRoutes = ['/', '/login', '/register', '/forum', '/forum/essences']
+  // 公开路由 - 前缀匹配
+  const publicPrefixRoutes = ['/forum/post/', '/forum/category/']
 
   // 管理员路由（以/admin开头）
   const isAdminRoute = to.path.startsWith('/admin')
 
-  // 普通用户路由（非管理员路由）
-  const isUserRoute = !isAdminRoute && !publicRoutes.includes(to.path)
-
   // 检查是否访问公开路由
-  if (publicRoutes.includes(to.path)) {
+  const isPublicRoute = publicRoutes.includes(to.path) ||
+    publicPrefixRoutes.some(prefix => to.path.startsWith(prefix)) ||
+    to.path === '/forum/publish'  // 发布页需要登录
+
+  if (isPublicRoute) {
     return true
   }
+
+  // 需要登录的路由检查
+  if (!token) {
+    return '/login'
+  }
+
+  // 管理员路由检查
+  if (isAdminRoute) {
+    if (role === 'ADMIN') {
+      return true
+    } else {
+      return '/'
+    }
+  }
+
+  // 普通用户路由检查
+  if (role === 'ADMIN') {
+    return '/admin'
+  }
+
+  return true
+})
 
   // 检查是否已登录
   if (!token) {
