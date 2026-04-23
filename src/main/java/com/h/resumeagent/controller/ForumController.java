@@ -165,6 +165,28 @@ public class ForumController {
         return ResponseEntity.ok(forumService.getCategories());
     }
 
+    @GetMapping("/hot")
+    @ResponseBody
+    public ResponseEntity<?> getHotPosts(@RequestParam(defaultValue = "0") int page,
+                                        @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(forumService.getHotPosts(PageRequest.of(page, size)));
+    }
+
+    @GetMapping("/hot-authors")
+    @ResponseBody
+    public ResponseEntity<?> getHotAuthors(@RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(forumService.getHotAuthors(limit));
+    }
+
+    @GetMapping("/author/{id}/posts")
+    @ResponseBody
+    public ResponseEntity<?> getAuthorPosts(@PathVariable Long id,
+                                           @RequestParam(defaultValue = "0") int page,
+                                           @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(forumService.getPostsByAuthor(id, pageable));
+    }
+
     @PostMapping("/admin/essence/{id}")
     @ResponseBody
     public ResponseEntity<?> setEssence(@PathVariable Long id, HttpServletRequest request) {

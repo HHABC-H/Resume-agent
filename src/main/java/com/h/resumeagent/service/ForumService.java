@@ -30,4 +30,6 @@ public interface ForumService {
     void removeTop(Long postId);
 
     List<ForumCategoryDTO> getCategories();
+    Page<ForumPostDTO> getHotPosts(Pageable pageable);
+    List<HotAuthorDTO> getHotAuthors(int limit);
 }

@@ -25,6 +25,11 @@ public interface ForumPostRepository extends JpaRepository<ForumPostEntity, Long
     @Query("SELECT p FROM ForumPostEntity p WHERE p.status > 0 ORDER BY p.createdAt DESC")
     Page<ForumPostEntity> findEssences(Pageable pageable);
 
+    Page<ForumPostEntity> findByOrderByViewCountDesc(Pageable pageable);
+
+    @Query(value = "SELECT author_id, COUNT(*) as post_count FROM forum_post GROUP BY author_id ORDER BY post_count DESC LIMIT :limit", nativeQuery = true)
+    List<Object[]> findHotAuthors(@Param("limit") int limit);
+
     @Modifying
     @Query("UPDATE ForumPostEntity p SET p.viewCount = p.viewCount + 1 WHERE p.id = :id")
     void incrementViewCount(@Param("id") Long id);

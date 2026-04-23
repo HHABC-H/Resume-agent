@@ -84,7 +84,7 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 
-const roles = ref<any[]>([])
+const roles = ref<any>(null)
 const rolesLoading = ref(false)
 const rolesError = ref('')
 

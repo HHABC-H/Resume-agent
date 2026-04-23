@@ -1,106 +1,139 @@
 <template>
-  <div class="interview-container">
-    <div class="header">
-      <button @click="goBack" class="btn btn-secondary">
-        返回
-      </button>
-      <h2>模拟面试</h2>
-    </div>
-    <div v-if="loading" class="loading">
-      {{ loadingText }}
-    </div>
-    <div v-else-if="error" class="error-message">
-      {{ error }}
-    </div>
-    <div v-else-if="!questions" class="question-count-selector">
-      <h3>选择题目数量</h3>
-      <div class="count-options">
-        <button @click="generateQuestionsWithCount(5)" class="btn btn-primary">5题</button>
-        <button @click="generateQuestionsWithCount(10)" class="btn btn-primary">10题</button>
-        <button @click="generateQuestionsWithCount(15)" class="btn btn-primary">15题</button>
+  <div class="interview-page">
+    <header class="header">
+      <div class="logo" @click="router.push('/')">技术论坛</div>
+      <nav class="nav-menu">
+        <router-link to="/" class="nav-item">论坛</router-link>
+        <router-link to="/resume/upload" class="nav-item">简历助手</router-link>
+        <router-link to="/reading" class="nav-item">在线阅读</router-link>
+        <router-link to="/interview/1" class="nav-item active">面试助手</router-link>
+        <router-link to="/profile" class="nav-item">个人信息</router-link>
+        <router-link to="/forum/essences" class="nav-item">精华帖</router-link>
+        <router-link to="/forum/authors" class="nav-item">热门作者</router-link>
+      </nav>
+      <div class="header-right">
+        <router-link to="/forum/publish" class="btn-publish-header">+ 发布帖子</router-link>
+        <div class="user-section">
+          <template v-if="isLoggedIn">
+            <div class="user-info" @click="router.push('/profile')">
+              <span class="username">{{ username }}</span>
+              <div class="avatar">{{ username?.charAt(0).toUpperCase() }}</div>
+            </div>
+            <button @click="router.go(-1)" class="btn-primary">返回</button>
+          </template>
+          <template v-else>
+            <router-link to="/login" class="btn-login">登录</router-link>
+            <router-link to="/register" class="btn-register">注册</router-link>
+          </template>
+        </div>
       </div>
-    </div>
-    <div v-else class="interview-content">
-      <div class="questions-section">
-        <h3>面试问题</h3>
-        <div class="question-item">
-          <div class="question-header">
-            <span class="question-number">问题 {{ currentQuestionIndex + 1 }} / {{ questions.questions.length }}</span>
+    </header>
+
+    <main class="main-content">
+      <div class="content-card">
+        <div class="page-header">
+          <button class="back-btn" @click="goBack">← 返回</button>
+          <h1 class="page-title">模拟面试</h1>
+        </div>
+
+        <div v-if="loading" class="loading">
+          {{ loadingText }}
+        </div>
+        <div v-else-if="error" class="error-message">
+          {{ error }}
+        </div>
+        <div v-else-if="!questions" class="question-count-selector">
+          <h3>选择题目数量</h3>
+          <div class="count-options">
+            <button @click="generateQuestionsWithCount(5)" class="btn btn-primary">5题</button>
+            <button @click="generateQuestionsWithCount(10)" class="btn btn-primary">10题</button>
+            <button @click="generateQuestionsWithCount(15)" class="btn btn-primary">15题</button>
           </div>
-          <div class="question-text">{{ currentQuestion.question }}</div>
-          <div class="answer-section">
-            <textarea 
-              v-model="answers[currentQuestionIndex]" 
-              placeholder="请输入你的回答..."
-              class="answer-input"
-              @input="resetFollowUp"
-            ></textarea>
+        </div>
+        <div v-else class="interview-content">
+          <div class="questions-section">
+            <h3>面试问题</h3>
+            <div class="question-item">
+              <div class="question-header">
+                <span class="question-number">问题 {{ currentQuestionIndex + 1 }} / {{ questions.questions.length }}</span>
+              </div>
+              <div class="question-text">{{ currentQuestion.question }}</div>
+              <div class="answer-section">
+                <textarea
+                  v-model="answers[currentQuestionIndex]"
+                  placeholder="请输入你的回答..."
+                  class="answer-input"
+                  @input="resetFollowUp"
+                ></textarea>
+              </div>
+              <div v-if="followUpQuestions[currentQuestionIndex]" class="follow-up-section">
+                <div class="follow-up-header">
+                  <span class="follow-up-label">追问：</span>
+                </div>
+                <div class="follow-up-text">{{ followUpQuestions[currentQuestionIndex] }}</div>
+                <div class="follow-up-answer-section">
+                  <textarea
+                    v-model="followUpAnswers[currentQuestionIndex]"
+                    placeholder="请输入你的回答..."
+                    class="answer-input"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
           </div>
-          <!-- 追问部分 -->
-          <div v-if="followUpQuestions[currentQuestionIndex]" class="follow-up-section">
-            <div class="follow-up-header">
-              <span class="follow-up-label">追问：</span>
+
+          <div class="question-navigation">
+            <button
+              @click="prevQuestion"
+              class="btn btn-secondary"
+              :disabled="currentQuestionIndex === 0"
+            >
+              上一题
+            </button>
+            <div class="question-indicators">
+              <div
+                v-for="(_, index) in questions.questions"
+                :key="index"
+                :class="['question-indicator', { active: index === currentQuestionIndex }]"
+                @click="goToQuestion(Number(index))"
+              ></div>
             </div>
-            <div class="follow-up-text">{{ followUpQuestions[currentQuestionIndex] }}</div>
-            <div class="follow-up-answer-section">
-              <textarea 
-                v-model="followUpAnswers[currentQuestionIndex]" 
-                placeholder="请输入你的回答..."
-                class="answer-input"
-              ></textarea>
-            </div>
+            <button
+              @click="nextQuestion"
+              class="btn btn-secondary"
+              :disabled="currentQuestionIndex === questions.questions.length - 1"
+            >
+              下一题
+            </button>
+          </div>
+
+          <div class="actions">
+            <button @click="goBack" class="btn btn-secondary">
+              返回
+            </button>
+            <button
+              v-if="!followUpQuestions[currentQuestionIndex]"
+              @click="generateFollowUp"
+              class="btn btn-secondary"
+              :disabled="!answers[currentQuestionIndex]"
+            >
+              追问
+            </button>
+            <button
+              v-if="currentQuestionIndex === questions.questions.length - 1"
+              @click="submitAnswers"
+              class="btn btn-primary"
+            >
+              提交答案并评估
+            </button>
           </div>
         </div>
       </div>
-      
-      <!-- 问题导航 -->
-      <div class="question-navigation">
-        <button 
-          @click="prevQuestion" 
-          class="btn btn-secondary"
-          :disabled="currentQuestionIndex === 0"
-        >
-          上一题
-        </button>
-        <div class="question-indicators">
-          <div 
-            v-for="(_, index) in questions.questions" 
-            :key="index"
-            :class="['question-indicator', { active: index === currentQuestionIndex }]"
-            @click="goToQuestion(index)"
-          ></div>
-        </div>
-        <button 
-          @click="nextQuestion" 
-          class="btn btn-secondary"
-          :disabled="currentQuestionIndex === questions.questions.length - 1"
-        >
-          下一题
-        </button>
-      </div>
-      
-      <!-- 操作按钮 -->
-      <div class="actions">
-        <button @click="goBack" class="btn btn-secondary">
-          返回
-        </button>
-        <button 
-          v-if="!followUpQuestions[currentQuestionIndex]" 
-          @click="generateFollowUp" 
-          class="btn btn-secondary"
-          :disabled="!answers[currentQuestionIndex]"
-        >
-          追问
-        </button>
-        <button 
-          v-if="currentQuestionIndex === questions.questions.length - 1" 
-          @click="submitAnswers" 
-          class="btn btn-primary"
-        >
-          提交答案并评估
-        </button>
-      </div>
-    </div>
+    </main>
+
+    <footer class="footer">
+      <p>&copy; 2024 Resume Agent. All rights reserved.</p>
+    </footer>
   </div>
 </template>
 
@@ -120,31 +153,27 @@ const followUpQuestions = ref<Record<number, string>>({})
 const followUpAnswers = ref<Record<number, string>>({})
 const currentQuestionIndex = ref(0)
 
+const token = localStorage.getItem('token')
+const username = localStorage.getItem('username')
+
+const isLoggedIn = computed(() => !!token)
+
 const resumeId = computed(() => route.params.resumeId as string)
 
-// 当前问题
 const currentQuestion = computed(() => {
   if (!questions.value || !questions.value.questions) return { question: '' }
   return questions.value.questions[currentQuestionIndex.value] || { question: '' }
 })
 
 onMounted(() => {
-  // 不自动生成问题，让用户选择题目数量后再生成
 })
 
-const token = localStorage.getItem('token')
-
 const generateQuestions = async (questionCount: number = 10) => {
-  console.log('开始生成问题，resumeId:', resumeId.value, '题目数量:', questionCount)
-  console.log('Token:', token)
   try {
-    console.log('发送请求到:', `/interview/${resumeId.value}/questions`)
     const response = await axios.post(`/interview/${resumeId.value}/questions`, { questionCount }, {
       headers: { Authorization: `Bearer ${token}` }
     })
-    console.log('请求成功，响应:', response.data)
     questions.value = response.data
-    // 初始化答案对象
     if (response.data.questions && response.data.questions.length > 0) {
       response.data.questions.forEach((_: any, index: number) => {
         answers.value[index] = ''
@@ -152,14 +181,11 @@ const generateQuestions = async (questionCount: number = 10) => {
         followUpAnswers.value[index] = ''
       })
     } else {
-      console.error('生成的问题数组为空')
       error.value = '生成问题失败：AI未能生成任何面试问题'
     }
   } catch (err: any) {
-    console.error('生成问题失败:', err)
     error.value = err.response?.data?.error || '生成问题失败'
   } finally {
-    console.log('生成问题完成，loading 设置为 false')
     loading.value = false
   }
 }
@@ -171,14 +197,13 @@ const generateQuestionsWithCount = async (count: number) => {
   await generateQuestions(count)
 }
 
-// 生成追问
 const generateFollowUp = async () => {
   if (!answers.value[currentQuestionIndex.value]) return
-  
+
   loadingText.value = '生成追问中...'
   loading.value = true
   error.value = ''
-  
+
   try {
     const response = await axios.post(`/interview/${resumeId.value}/follow-up`, {
       questionIndex: currentQuestionIndex.value,
@@ -186,49 +211,43 @@ const generateFollowUp = async () => {
     }, {
       headers: { Authorization: `Bearer ${token}` }
     })
-    
+
     if (response.data && response.data.followUpQuestion) {
       followUpQuestions.value[currentQuestionIndex.value] = response.data.followUpQuestion
     }
   } catch (err: any) {
-    console.error('生成追问失败:', err)
     error.value = err.response?.data?.error || '生成追问失败'
   } finally {
     loading.value = false
   }
 }
 
-// 重置追问
 const resetFollowUp = () => {
   followUpQuestions.value[currentQuestionIndex.value] = ''
   followUpAnswers.value[currentQuestionIndex.value] = ''
 }
 
-// 上一题
 const prevQuestion = () => {
   if (currentQuestionIndex.value > 0) {
     currentQuestionIndex.value--
   }
 }
 
-// 下一题
 const nextQuestion = () => {
   if (questions.value && currentQuestionIndex.value < questions.value.questions.length - 1) {
     currentQuestionIndex.value++
   }
 }
 
-// 跳转到指定问题
 const goToQuestion = (index: number) => {
   currentQuestionIndex.value = index
 }
 
-// 提交答案
 const submitAnswers = async () => {
   loadingText.value = '评估中...'
   loading.value = true
   error.value = ''
-  
+
   try {
     const response = await axios.post(`/interview/${resumeId.value}/submit`, {
       answers: answers.value,
@@ -236,7 +255,7 @@ const submitAnswers = async () => {
     }, {
       headers: { Authorization: `Bearer ${token}` }
     })
-    
+
     if (response.data) {
       router.push(`/interview/result/${resumeId.value}`)
     }
@@ -250,43 +269,214 @@ const submitAnswers = async () => {
 const goBack = () => {
   router.push('/history')
 }
+
+
 </script>
 
 <style scoped>
-.interview-container {
-  max-width: 800px;
-  margin: 2rem auto;
-  padding: 2rem;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+.interview-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f5f5;
 }
 
 .header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  padding: 0.8rem 2rem;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
-.header h2 {
+.logo {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #007bff;
+  cursor: pointer;
+  margin-right: 2rem;
+}
+
+.nav-menu {
+  display: flex;
+  gap: 0.3rem;
   flex: 1;
-  text-align: center;
+}
+
+.nav-item {
+  color: #666;
+  text-decoration: none;
+  padding: 0.5rem 0.9rem;
+  border-radius: 4px;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.nav-item:hover {
+  background: #f0f7ff;
+  color: #007bff;
+}
+
+.nav-item.active {
+  background: #007bff;
+  color: #fff;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.btn-publish-header {
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  color: #fff;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.btn-publish-header:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+}
+
+.user-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.user-info:hover {
+  background: #f5f5f5;
+}
+
+.username {
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.btn-primary {
+  padding: 0.5rem 1rem;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-primary:hover {
+  background: #0069d9;
+}
+
+.btn-login, .btn-register {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.btn-login {
+  color: #007bff;
+}
+
+.btn-register {
+  background: #007bff;
+  color: #fff;
+}
+
+.main-content {
+  flex: 1;
+  padding: 1.5rem 2rem;
+}
+
+.content-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.back-btn {
+  padding: 0.5rem 1rem;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #666;
+  font-size: 14px;
+  margin-right: 1rem;
+}
+
+.back-btn:hover {
+  border-color: #007bff;
+  color: #007bff;
+}
+
+.page-title {
   margin: 0;
+  font-size: 18px;
+  font-weight: 600;
   color: #333;
 }
 
-.btn-secondary {
-  background-color: #6c757d;
-  color: white;
+.interview-content,
+.question-count-selector {
+  padding: 1.5rem;
 }
 
-.btn-secondary:hover {
-  background-color: #5a6268;
+.question-count-selector h3 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #333;
 }
 
-.btn-secondary:disabled {
-  background-color: #adb5bd;
-  cursor: not-allowed;
+.count-options {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
 }
 
 .questions-section {
@@ -333,7 +523,6 @@ h3 {
   font-size: 1rem;
 }
 
-/* 追问部分 */
 .follow-up-section {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
@@ -361,7 +550,6 @@ h3 {
   margin-top: 1rem;
 }
 
-/* 问题导航 */
 .question-navigation {
   display: flex;
   align-items: center;
@@ -394,12 +582,13 @@ h3 {
   height: 16px;
 }
 
-/* 操作按钮 */
 .actions {
   display: flex;
   justify-content: center;
   gap: 1rem;
   margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
 }
 
 button {
@@ -422,6 +611,14 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.btn-secondary {
+  background-color: #6c757d;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #5a6268;
+}
+
 .loading {
   text-align: center;
   padding: 2rem;
@@ -433,6 +630,28 @@ button:disabled {
   background-color: #f8d7da;
   color: #721c24;
   border-radius: 4px;
-  margin-top: 1rem;
+  margin: 1rem;
+}
+
+.footer {
+  text-align: center;
+  padding: 1rem;
+  background: #fff;
+  color: #999;
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .header {
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 0.8rem 1rem;
+  }
+
+  .nav-menu {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+  }
 }
 </style>

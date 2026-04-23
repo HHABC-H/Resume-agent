@@ -47,9 +47,14 @@ const routes = [
     component: () => import('../views/user/Profile.vue')
   },
   {
+    path: '/reading',
+    name: 'reading',
+    component: () => import('../views/Reading.vue')
+  },
+  {
     path: '/forum',
     name: 'forumIndex',
-    component: () => import('../views/forum/Index.vue')
+    component: () => import('../views/HomeView.vue')
   },
   {
     path: '/forum/post/:id',
@@ -70,6 +75,16 @@ const routes = [
     path: '/forum/essences',
     name: 'forumEssences',
     component: () => import('../views/forum/Essences.vue')
+  },
+  {
+    path: '/forum/authors',
+    name: 'forumAuthors',
+    component: () => import('../views/forum/Authors.vue')
+  },
+  {
+    path: '/forum/author/:id',
+    name: 'forumAuthorPosts',
+    component: () => import('../views/forum/AuthorPosts.vue')
   },
   {
     path: '/admin',
@@ -121,9 +136,9 @@ router.beforeEach((to, from) => {
   const role = localStorage.getItem('role')
 
   // 公开路由（不需要登录）- 精确匹配
-  const publicRoutes = ['/', '/login', '/register', '/forum', '/forum/essences']
+  const publicRoutes = ['/', '/login', '/register', '/forum', '/forum/essences', '/forum/authors', '/forum/author/', '/reading']
   // 公开路由 - 前缀匹配
-  const publicPrefixRoutes = ['/forum/post/', '/forum/category/']
+  const publicPrefixRoutes = ['/forum/post/', '/forum/category/', '/forum/author/']
 
   // 管理员路由（以/admin开头）
   const isAdminRoute = to.path.startsWith('/admin')
@@ -131,7 +146,7 @@ router.beforeEach((to, from) => {
   // 检查是否访问公开路由
   const isPublicRoute = publicRoutes.includes(to.path) ||
     publicPrefixRoutes.some(prefix => to.path.startsWith(prefix)) ||
-    to.path === '/forum/publish'  // 发布页需要登录
+    to.path === '/forum/publish'
 
   if (isPublicRoute) {
     return true
@@ -156,35 +171,6 @@ router.beforeEach((to, from) => {
     return '/admin'
   }
 
-  return true
-})
-
-  // 检查是否已登录
-  if (!token) {
-    return '/login'
-  }
-
-  // 检查管理员访问权限
-  if (isAdminRoute) {
-    if (role === 'ADMIN') {
-      return true
-    } else {
-      // 非管理员不能访问管理后台
-      return '/'
-    }
-  }
-
-  // 检查普通用户路由访问权限
-  if (isUserRoute) {
-    if (role === 'ADMIN') {
-      // 管理员不能访问普通用户路由，重定向到管理后台
-      return '/admin'
-    } else {
-      return true
-    }
-  }
-
-  // 默认情况
   return true
 })
 

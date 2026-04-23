@@ -144,7 +144,7 @@ const systemLimitsLoading = ref(false)
 const systemLimitsError = ref('')
 const systemLimitsEditing = ref(false)
 
-const promptTemplates = ref<any[]>([])
+const promptTemplates = ref<any>(null)
 const promptTemplatesLoading = ref(false)
 const promptTemplatesError = ref('')
 

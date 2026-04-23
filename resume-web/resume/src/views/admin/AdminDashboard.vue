@@ -381,7 +381,7 @@ const interviewHistoryLoading = ref(false)
 const interviewHistoryError = ref('')
 
 // 面试模板相关
-const interviewTemplates = ref<any[]>([])
+const interviewTemplates = ref<any>(null)
 const interviewTemplatesLoading = ref(false)
 const interviewTemplatesError = ref('')
 
@@ -391,7 +391,7 @@ const aiConfigLoading = ref(false)
 const aiConfigError = ref('')
 const aiConfigEditing = ref(false)
 
-const promptTemplates = ref<any[]>([])
+const promptTemplates = ref<any>(null)
 const promptTemplatesLoading = ref(false)
 const promptTemplatesError = ref('')
 
@@ -401,7 +401,7 @@ const systemLimitsError = ref('')
 const systemLimitsEditing = ref(false)
 
 // 权限管理相关
-const roles = ref<any[]>([])
+const roles = ref<any>(null)
 const rolesLoading = ref(false)
 const rolesError = ref('')
 

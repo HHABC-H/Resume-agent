@@ -222,6 +222,35 @@ public class ForumServiceImpl implements ForumService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public Page<ForumPostDTO> getHotPosts(Pageable pageable) {
+        return postRepository.findByOrderByViewCountDesc(pageable)
+                .map(this::toPostDTO);
+    }
+
+    @Override
+    public List<HotAuthorDTO> getHotAuthors(int limit) {
+        List<Object[]> results = postRepository.findHotAuthors(limit);
+        List<HotAuthorDTO> authors = new java.util.ArrayList<>();
+        for (Object[] row : results) {
+            Long authorId = ((Number) row[0]).longValue();
+            Integer postCount = ((Number) row[1]).intValue();
+            String username = userRepository.findById(authorId)
+                    .map(u -> u.getUsername())
+                    .orElse("Unknown");
+            String displayName = userRepository.findById(authorId)
+                    .map(u -> u.getDisplayName())
+                    .orElse(username);
+            authors.add(HotAuthorDTO.builder()
+                    .id(authorId)
+                    .username(username)
+                    .displayName(displayName)
+                    .postCount(postCount)
+                    .build());
+        }
+        return authors;
+    }
+
     private ForumPostDTO toPostDTO(ForumPostEntity post) {
         String contentPreview = post.getContent();
         if (contentPreview != null && contentPreview.length() > 100) {

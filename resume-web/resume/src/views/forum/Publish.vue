@@ -1,7 +1,8 @@
 <template>
   <div class="publish-container">
-    <div class="header">
-      <router-link to="/forum">&larr; 返回论坛</router-link>
+    <div class="page-header">
+      <button class="back-btn" @click="router.go(-1)">← 返回</button>
+      <h1 class="page-title">发布帖子</h1>
     </div>
 
     <div class="form">
@@ -96,13 +97,37 @@ onMounted(() => {
   padding: 20px;
 }
 
-.header {
-  margin-bottom: 20px;
+.page-header {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-.header a {
+.back-btn {
+  padding: 0.5rem 1rem;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #666;
+  font-size: 14px;
+  margin-right: 1rem;
+}
+
+.back-btn:hover {
+  border-color: #007bff;
   color: #007bff;
-  text-decoration: none;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
 }
 
 .form {

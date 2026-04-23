@@ -1,13 +1,12 @@
 <template>
   <div class="forum-home">
-    <!-- 导航栏 -->
     <header class="header">
       <div class="logo" @click="router.push('/')">技术论坛</div>
       <nav class="nav-menu">
-        <router-link to="/" class="nav-item active">论坛</router-link>
+        <router-link to="/" class="nav-item">论坛</router-link>
         <router-link to="/resume/upload" class="nav-item">简历助手</router-link>
         <router-link to="/reading" class="nav-item">在线阅读</router-link>
-        <router-link :to="interviewLink" class="nav-item">面试助手</router-link>
+        <router-link to="/interview/1" class="nav-item">面试助手</router-link>
         <router-link to="/profile" class="nav-item">个人信息</router-link>
         <router-link to="/forum/essences" class="nav-item">精华帖</router-link>
         <router-link to="/forum/authors" class="nav-item">热门作者</router-link>
@@ -30,30 +29,19 @@
       </div>
     </header>
 
-    <!-- 主内容区 -->
     <main class="main-content">
       <div class="content-wrapper">
-        <!-- 左侧主区域 -->
         <div class="main">
-          <!-- 发帖入口 + Tab切换 -->
-          <div class="post-header">
-            <div class="tab-buttons">
-              <button :class="{ active: currentTab === 'latest' }" @click="switchTab('latest')">最新</button>
-              <button :class="{ active: currentTab === 'hot' }" @click="switchTab('hot')">热门</button>
-            </div>
-            <router-link to="/forum/publish" class="btn-write">
-              <span class="write-icon">✏️</span>
-              发帖
-            </router-link>
+          <div class="page-header">
+            <button class="back-btn" @click="router.go(-1)">← 返回</button>
+            <h1 class="page-title">{{ authorName }} 的帖子</h1>
           </div>
 
-          <!-- 帖子列表 -->
           <div class="post-list">
             <div v-if="loading" class="loading">加载中...</div>
             <div v-else-if="error" class="error">{{ error }}</div>
             <div v-else-if="posts.length === 0" class="empty">
-              <p>暂无帖子</p>
-              <router-link to="/forum/publish" class="btn-publish-empty">成为第一个发帖的人</router-link>
+              <p>该作者暂无帖子</p>
             </div>
             <div v-else>
               <div v-for="post in posts" :key="post.id" class="post-item" @click="router.push(`/forum/post/${post.id}`)">
@@ -86,7 +74,6 @@
               </div>
             </div>
 
-            <!-- 分页 -->
             <div class="pagination" v-if="totalPages > 1">
               <button :disabled="page === 0" @click="loadPosts(page - 1)">上一页</button>
               <span>{{ page + 1 }} / {{ totalPages }}</span>
@@ -95,9 +82,7 @@
           </div>
         </div>
 
-        <!-- 右侧边栏 -->
         <aside class="sidebar">
-          <!-- 分类导航 -->
           <div class="sidebar-section">
             <h3>分类导航</h3>
             <ul class="category-list">
@@ -110,7 +95,6 @@
             </ul>
           </div>
 
-          <!-- 全站热榜 -->
           <div class="sidebar-section">
             <h3>🔥 全站热榜</h3>
             <ul class="hot-list">
@@ -120,25 +104,10 @@
               </li>
             </ul>
           </div>
-
-          <!-- 热门作者 -->
-          <div class="sidebar-section">
-            <h3>⭐ 热门作者</h3>
-            <ul class="author-list">
-              <li v-for="author in hotAuthors" :key="author.id" class="author-item">
-                <div class="author-avatar">{{ author.username?.charAt(0).toUpperCase() }}</div>
-                <div class="author-info">
-                  <span class="author-name">{{ author.username }}</span>
-                  <span class="author-posts">{{ author.postCount }} 帖</span>
-                </div>
-              </li>
-            </ul>
-          </div>
         </aside>
       </div>
     </main>
 
-    <!-- 页脚 -->
     <footer class="footer">
       <p>&copy; 2024 Resume Agent. All rights reserved.</p>
     </footer>
@@ -147,43 +116,37 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 
 const router = useRouter()
+const route = useRoute()
 
+const authorId = computed(() => route.params.id)
+const authorName = ref('作者')
 const posts = ref([])
 const categories = ref([])
 const hotPosts = ref([])
-const hotAuthors = ref([])
 const loading = ref(true)
 const error = ref('')
 const page = ref(0)
 const totalPages = ref(1)
-const currentTab = ref('latest')
 
 const token = localStorage.getItem('token')
 const username = localStorage.getItem('username')
-const role = localStorage.getItem('role')
 
 const isLoggedIn = computed(() => !!token)
-
-const interviewLink = computed(() => {
-  if (!token) return '/login'
-  return '/interview/1'
-})
 
 const loadPosts = async (pageNum = 0) => {
   try {
     loading.value = true
-    let url = `/forum?page=${pageNum}&size=20`
-    if (currentTab.value === 'hot') {
-      url = `/forum/hot?page=${pageNum}&size=20`
-    }
-    const response = await axios.get(url)
+    const response = await axios.get(`/forum/author/${authorId.value}/posts?page=${pageNum}&size=20`)
     posts.value = response.data.content || []
     totalPages.value = response.data.totalPages || 1
     page.value = pageNum
+    if (response.data.content?.length > 0) {
+      authorName.value = response.data.content[0].authorName || '作者'
+    }
   } catch (e) {
     error.value = '加载失败'
   } finally {
@@ -209,20 +172,6 @@ const loadHotPosts = async () => {
   }
 }
 
-const loadHotAuthors = async () => {
-  try {
-    const response = await axios.get('/forum/hot-authors')
-    hotAuthors.value = response.data || []
-  } catch (e) {
-    console.error('加载热门作者失败', e)
-  }
-}
-
-const switchTab = (tab) => {
-  currentTab.value = tab
-  loadPosts(0)
-}
-
 const formatDate = (dateStr) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
@@ -233,7 +182,6 @@ onMounted(() => {
   loadPosts()
   loadCategories()
   loadHotPosts()
-  loadHotAuthors()
 })
 </script>
 
@@ -245,7 +193,6 @@ onMounted(() => {
   background: #f5f5f5;
 }
 
-/* 导航栏 */
 .header {
   display: flex;
   justify-content: space-between;
@@ -384,7 +331,6 @@ onMounted(() => {
   color: #fff;
 }
 
-/* 主内容区 */
 .main-content {
   flex: 1;
   padding: 1.5rem 2rem;
@@ -397,7 +343,6 @@ onMounted(() => {
   gap: 20px;
 }
 
-/* 左侧主区域 */
 .main {
   flex: 1;
   background: #fff;
@@ -406,60 +351,36 @@ onMounted(() => {
   overflow: hidden;
 }
 
-.post-header {
+.page-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   padding: 1rem 1.5rem;
   border-bottom: 1px solid #eee;
-  background: #fff;
 }
 
-.tab-buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.tab-buttons button {
-  padding: 0.4rem 1rem;
-  border: none;
-  background: #f5f5f5;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  color: #666;
-  transition: all 0.2s;
-}
-
-.tab-buttons button.active {
-  background: #007bff;
-  color: #fff;
-}
-
-.btn-write {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.4rem 1rem;
+.back-btn {
+  padding: 0.5rem 1rem;
   background: #fff;
   border: 1px solid #ddd;
   border-radius: 4px;
-  text-decoration: none;
+  cursor: pointer;
   color: #666;
   font-size: 14px;
-  transition: all 0.2s;
+  margin-right: 1rem;
 }
 
-.btn-write:hover {
+.back-btn:hover {
   border-color: #007bff;
   color: #007bff;
 }
 
-.write-icon {
-  font-size: 14px;
+.page-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
 }
 
-/* 帖子列表 */
 .post-list {
   padding: 0;
 }
@@ -557,7 +478,49 @@ onMounted(() => {
   font-size: 14px;
 }
 
-/* 右侧边栏 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.2rem;
+  align-items: center;
+}
+
+.pagination button {
+  padding: 0.5rem 1rem;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #666;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination button:hover:not(:disabled) {
+  border-color: #007bff;
+  color: #007bff;
+}
+
+.pagination span {
+  color: #666;
+  font-size: 14px;
+}
+
+.loading, .error, .empty {
+  text-align: center;
+  padding: 3rem;
+  color: #999;
+}
+
+.error {
+  color: #dc3545;
+}
+
 .sidebar {
   width: 280px;
   flex-shrink: 0;
@@ -581,7 +544,6 @@ onMounted(() => {
   background: #fff;
 }
 
-/* 分类列表 */
 .category-list {
   list-style: none;
   padding: 0;
@@ -609,7 +571,6 @@ onMounted(() => {
   font-size: 12px;
 }
 
-/* 热榜列表 */
 .hot-list {
   list-style: none;
   padding: 0.5rem 0;
@@ -656,116 +617,6 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-/* 作者列表 */
-.author-list {
-  list-style: none;
-  padding: 0.5rem 0;
-  margin: 0;
-}
-
-.author-item {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  padding: 0.6rem 1rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.author-item:hover {
-  background: #f8f9fa;
-}
-
-.author-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-.author-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.author-name {
-  color: #333;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.author-posts {
-  color: #999;
-  font-size: 12px;
-}
-
-/* 分页 */
-.pagination {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  padding: 1.2rem;
-  align-items: center;
-}
-
-.pagination button {
-  padding: 0.5rem 1rem;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  color: #666;
-}
-
-.pagination button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.pagination button:hover:not(:disabled) {
-  border-color: #007bff;
-  color: #007bff;
-}
-
-.pagination span {
-  color: #666;
-  font-size: 14px;
-}
-
-/* 加载状态 */
-.loading, .error, .empty {
-  text-align: center;
-  padding: 3rem;
-  color: #999;
-}
-
-.empty p {
-  margin-bottom: 1rem;
-}
-
-.btn-publish-empty {
-  padding: 0.5rem 1rem;
-  background: #007bff;
-  color: #fff;
-  border-radius: 4px;
-  text-decoration: none;
-  font-size: 14px;
-}
-
-.error {
-  color: #dc3545;
-}
-
-/* 页脚 */
 .footer {
   text-align: center;
   padding: 1rem;
@@ -775,27 +626,7 @@ onMounted(() => {
   margin-top: auto;
 }
 
-/* 响应式 */
 @media (max-width: 900px) {
-  .header {
-    flex-wrap: wrap;
-    gap: 1rem;
-    padding: 0.8rem 1rem;
-  }
-
-  .nav-menu {
-    order: 3;
-    width: 100%;
-    overflow-x: auto;
-    gap: 0.2rem;
-  }
-
-  .nav-item {
-    padding: 0.4rem 0.7rem;
-    font-size: 14px;
-    white-space: nowrap;
-  }
-
   .content-wrapper {
     flex-direction: column;
   }
@@ -807,8 +638,8 @@ onMounted(() => {
     gap: 15px;
   }
 
-  .sidebar-section:last-child {
-    grid-column: span 2;
+  .post-right {
+    display: none;
   }
 }
 
@@ -817,12 +648,16 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .sidebar-section:last-child {
-    grid-column: span 1;
+  .header {
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 0.8rem 1rem;
   }
 
-  .post-right {
-    display: none;
+  .nav-menu {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
   }
 }
 </style>

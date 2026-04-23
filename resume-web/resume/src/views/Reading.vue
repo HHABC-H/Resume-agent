@@ -1,11 +1,11 @@
 <template>
-  <div class="result-page">
+  <div class="reading-page">
     <header class="header">
       <div class="logo" @click="router.push('/')">技术论坛</div>
       <nav class="nav-menu">
         <router-link to="/" class="nav-item">论坛</router-link>
         <router-link to="/resume/upload" class="nav-item">简历助手</router-link>
-        <router-link to="/reading" class="nav-item">在线阅读</router-link>
+        <router-link to="/reading" class="nav-item active">在线阅读</router-link>
         <router-link to="/interview/1" class="nav-item">面试助手</router-link>
         <router-link to="/profile" class="nav-item">个人信息</router-link>
         <router-link to="/forum/essences" class="nav-item">精华帖</router-link>
@@ -32,70 +32,12 @@
     <main class="main-content">
       <div class="content-card">
         <div class="page-header">
-          <button class="back-btn" @click="goBack">← 返回</button>
-          <h1 class="page-title">面试评估结果</h1>
+          <button class="back-btn" @click="router.go(-1)">← 返回</button>
+          <h1 class="page-title">在线阅读</h1>
         </div>
-
-        <div v-if="loading" class="loading">
-          加载评估结果中...
-        </div>
-        <div v-else-if="error" class="error-message">
-          {{ error }}
-        </div>
-        <div v-else-if="evaluation" class="result-content">
-          <div class="score-section">
-            <h3>面试评分</h3>
-            <div class="score-value">{{ evaluation.overallScore }}</div>
-            <div class="score-breakdown">
-              <div v-for="(item, index) in evaluation.categoryScores" :key="index" class="score-item">
-                <span>{{ item.category }}:</span>
-                <span>{{ item.score }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="strengths-section">
-            <h3>优势</h3>
-            <ul>
-              <li v-for="(strength, index) in evaluation.strengths" :key="index">
-                {{ strength }}
-              </li>
-            </ul>
-          </div>
-
-          <div class="improvements-section">
-            <h3>改进建议</h3>
-            <ul>
-              <li v-for="(improvement, index) in evaluation.improvements" :key="index">
-                {{ improvement }}
-              </li>
-            </ul>
-          </div>
-
-          <div class="answers-section">
-            <h3>问题与答案评估</h3>
-            <div v-for="(item, index) in evaluation.questionDetails" :key="index" class="answer-item">
-              <div class="answer-header">
-                <span class="question-number">问题 {{ (item.questionIndex as number) + 1 }}</span>
-                <span class="answer-score">得分: {{ item.score }}</span>
-              </div>
-              <div class="question-text">{{ item.question }}</div>
-              <div class="user-answer">
-                <strong>你的回答:</strong>
-                <p>{{ item.userAnswer }}</p>
-              </div>
-              <div class="evaluation-text">
-                <strong>评估:</strong>
-                <p>{{ item.feedback }}</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="actions">
-            <button @click="goBack" class="btn btn-secondary">
-              返回首页
-            </button>
-          </div>
+        <div class="reading-content">
+          <p class="coming-soon">功能开发中，敬请期待...</p>
+          <p class="hint">这里将提供面试八股文、技术文章等阅读内容</p>
         </div>
       </div>
     </main>
@@ -106,48 +48,22 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import axios from 'axios'
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const route = useRoute()
-const loading = ref(true)
-const error = ref('')
-const evaluation = ref<any>(null)
 
 const token = localStorage.getItem('token')
 const username = localStorage.getItem('username')
 
 const isLoggedIn = computed(() => !!token)
 
-const resumeId = computed(() => route.params.resumeId as string)
-
-onMounted(async () => {
-  await loadEvaluation()
-})
-
-const loadEvaluation = async () => {
-  try {
-    const response = await axios.get(`/interview/result/${resumeId.value}`)
-    evaluation.value = response.data.evaluation
-  } catch (err: any) {
-    error.value = err.response?.data?.error || '加载评估结果失败'
-  } finally {
-    loading.value = false
-  }
-}
-
-const goBack = () => {
-  router.push('/resume/upload')
-}
-
 
 </script>
 
 <style scoped>
-.result-page {
+.reading-page {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -295,14 +211,16 @@ const goBack = () => {
 .main-content {
   flex: 1;
   padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: center;
 }
 
 .content-card {
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  width: 100%;
   max-width: 800px;
-  margin: 0 auto;
 }
 
 .page-header {
@@ -335,139 +253,20 @@ const goBack = () => {
   color: #333;
 }
 
-.result-content {
-  padding: 1.5rem;
-}
-
-.score-section {
-  margin-bottom: 2rem;
-  padding: 1.5rem;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-}
-
-.score-value {
-  font-size: 2.5rem;
-  font-weight: bold;
+.reading-content {
+  padding: 3rem;
   text-align: center;
-  margin: 1rem 0;
-  color: #007bff;
 }
 
-.score-breakdown {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.score-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem;
-  background-color: white;
-  border-radius: 4px;
-  flex: 1 1 200px;
-}
-
-.strengths-section,
-.improvements-section {
-  margin-bottom: 2rem;
-}
-
-.answers-section {
-  margin-bottom: 2rem;
-}
-
-h3 {
-  margin-bottom: 1rem;
-  color: #495057;
-}
-
-ul {
-  list-style-type: disc;
-  padding-left: 1.5rem;
-}
-
-li {
-  margin-bottom: 0.5rem;
-  line-height: 1.5;
-}
-
-.answer-item {
-  margin-bottom: 2rem;
-  padding: 1.5rem;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-}
-
-.answer-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.coming-soon {
+  color: #666;
+  font-size: 1.2rem;
   margin-bottom: 1rem;
 }
 
-.question-number {
-  font-weight: bold;
-  color: #007bff;
-}
-
-.answer-score {
-  font-weight: bold;
-  color: #28a745;
-}
-
-.question-text {
-  margin-bottom: 1rem;
-  line-height: 1.5;
-}
-
-.user-answer,
-.evaluation-text {
-  margin-bottom: 1rem;
-}
-
-.user-answer p,
-.evaluation-text p {
-  margin-top: 0.5rem;
-  line-height: 1.5;
-}
-
-.actions {
-  display: flex;
-  justify-content: center;
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid #eee;
-}
-
-button {
-  padding: 0.75rem 1.5rem;
-  background-color: #6c757d;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
-}
-
-button:hover {
-  background-color: #5a6268;
-}
-
-.loading {
-  text-align: center;
-  padding: 2rem;
-  color: #6c757d;
-}
-
-.error-message {
-  padding: 1rem;
-  background-color: #f8d7da;
-  color: #721c24;
-  border-radius: 4px;
-  margin: 1rem;
+.hint {
+  color: #999;
+  font-size: 0.9rem;
 }
 
 .footer {
