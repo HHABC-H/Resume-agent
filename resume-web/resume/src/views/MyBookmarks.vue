@@ -8,7 +8,9 @@
         <router-link to="/reading" class="nav-item">在线阅读</router-link>
         <router-link to="/interview/1" class="nav-item">面试助手</router-link>
         <router-link to="/profile" class="nav-item">个人信息</router-link>
-        <router-link to="/forum/essences" class="nav-item active">精华帖</router-link>
+        <router-link to="/history" class="nav-item">查看历史</router-link>
+        <router-link to="/my-bookmarks" class="nav-item">我的收藏</router-link>
+        <router-link to="/forum/essences" class="nav-item">精华帖</router-link>
         <router-link to="/forum/authors" class="nav-item">热门作者</router-link>
       </nav>
       <div class="header-right">
@@ -34,35 +36,37 @@
         <div class="main">
           <div class="page-header">
             <button class="back-btn" @click="router.go(-1)">← 返回</button>
-            <h1 class="page-title">精华帖</h1>
+            <h1 class="page-title">我的收藏</h1>
           </div>
 
-          <div class="essences-container">
+          <div class="bookmarks-container">
             <div v-if="loading" class="loading">加载中...</div>
             <div v-else-if="error" class="error">{{ error }}</div>
-            <div v-else-if="posts.length === 0" class="empty">暂无精华帖</div>
-            <div v-else class="post-list">
-              <div v-for="post in posts" :key="post.id" class="post-item">
-                <h2>
-                  <span class="badge essence">精华</span>
-                  <router-link :to="`/forum/post/${post.id}`">{{ post.title }}</router-link>
-                </h2>
-                <div class="meta">
-                  <span>{{ post.authorName }}</span>
-                  <span>{{ post.categoryName }}</span>
-                  <span>{{ formatDate(post.createdAt) }}</span>
-                  <span>阅读 {{ post.viewCount }}</span>
-                  <span>评论 {{ post.commentCount }}</span>
-                  <span>👍 {{ post.likeCount }}</span>
+            <div v-else-if="bookmarks.length === 0" class="empty">
+              <p>暂无收藏内容</p>
+              <p class="hint">浏览帖子时点击收藏按钮来收藏感兴趣的内容</p>
+            </div>
+            <div v-else class="bookmark-list">
+              <div
+                v-for="bookmark in bookmarks"
+                :key="bookmark.id"
+                class="bookmark-item"
+                @click="router.push(`/forum/post/${bookmark.id}`)"
+              >
+                <h3 class="bookmark-title">{{ bookmark.title }}</h3>
+                <div class="bookmark-meta">
+                  <span class="author">作者：{{ bookmark.authorName }}</span>
+                  <span class="category">{{ bookmark.categoryName }}</span>
+                  <span class="time">{{ formatDate(bookmark.createdAt) }}</span>
                 </div>
-                <div class="preview">{{ post.contentPreview }}</div>
+                <div class="bookmark-preview">{{ bookmark.contentPreview }}</div>
               </div>
             </div>
 
             <div v-if="totalPages > 1" class="pagination">
-              <button @click="loadPosts(page - 1)" :disabled="page === 0" class="page-btn">上一页</button>
-              <span class="page-info">{{ page + 1 }} / {{ totalPages }}</span>
-              <button @click="loadPosts(page + 1)" :disabled="page >= totalPages - 1" class="page-btn">下一页</button>
+              <button @click="loadBookmarks(currentPage - 1)" :disabled="currentPage === 0" class="page-btn">上一页</button>
+              <span class="page-info">{{ currentPage + 1 }} / {{ totalPages }}</span>
+              <button @click="loadBookmarks(currentPage + 1)" :disabled="currentPage >= totalPages - 1" class="page-btn">下一页</button>
             </div>
           </div>
         </div>
@@ -106,12 +110,12 @@ import axios from 'axios'
 
 const router = useRouter()
 
-const posts = ref([])
+const bookmarks = ref([])
 const categories = ref([])
 const hotPosts = ref([])
 const loading = ref(true)
 const error = ref('')
-const page = ref(0)
+const currentPage = ref(0)
 const totalPages = ref(1)
 
 const token = localStorage.getItem('token')
@@ -127,16 +131,23 @@ const handleLogout = () => {
   router.push('/login')
 }
 
-const loadPosts = async (pageNum = 0) => {
+const loadBookmarks = async (page = 0) => {
   try {
     loading.value = true
     error.value = ''
-    const response = await axios.get(`/forum/essences?page=${pageNum}&size=20`)
-    posts.value = response.data.data?.content || response.data?.content || []
-    totalPages.value = response.data.data?.totalPages || response.data?.totalPages || 1
-    page.value = pageNum
+    const response = await axios.get(`/article/bookmark?page=${page}&size=20`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (response.data.code === 200) {
+      bookmarks.value = response.data.data.content || []
+      totalPages.value = response.data.data.totalPages || 1
+    } else {
+      bookmarks.value = response.data.content || []
+      totalPages.value = response.data.totalPages || 1
+    }
+    currentPage.value = page
   } catch (e) {
-    error.value = '加载失败: ' + (e.message || '未知错误')
+    error.value = '加载收藏失败'
   } finally {
     loading.value = false
   }
@@ -154,7 +165,7 @@ const loadCategories = async () => {
 const loadHotPosts = async () => {
   try {
     const response = await axios.get('/forum/hot?size=10')
-    hotPosts.value = response.data.content || []
+    hotPosts.value = response.data.data?.content || response.data?.content || []
   } catch (e) {
     console.error('加载热榜失败', e)
   }
@@ -167,7 +178,7 @@ const formatDate = (dateStr) => {
 }
 
 onMounted(() => {
-  loadPosts()
+  loadBookmarks()
   loadCategories()
   loadHotPosts()
 })
@@ -385,7 +396,7 @@ onMounted(() => {
   color: #333;
 }
 
-.essences-container {
+.bookmarks-container {
   padding: 1rem;
 }
 
@@ -399,62 +410,53 @@ onMounted(() => {
   color: #dc3545;
 }
 
-.post-list {
+.empty .hint {
+  font-size: 14px;
+  color: #aaa;
+  margin-top: 0.5rem;
+}
+
+.bookmark-list {
   display: flex;
   flex-direction: column;
+  gap: 1rem;
 }
 
-.post-item {
-  padding: 1rem 0;
-  border-bottom: 1px solid #eee;
+.bookmark-item {
+  padding: 1rem;
+  background: #fafafa;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.post-item:last-child {
-  border-bottom: none;
+.bookmark-item:hover {
+  background: #f0f7ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
-.post-item h2 {
-  font-size: 18px;
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.post-item h2 a {
+.bookmark-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 16px;
   color: #333;
-  text-decoration: none;
 }
 
-.post-item h2 a:hover {
+.bookmark-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.bookmark-meta .category {
   color: #007bff;
 }
 
-.badge {
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.badge.essence {
-  background: #ffc107;
-  color: #000;
-}
-
-.meta {
-  color: #999;
+.bookmark-preview {
   font-size: 14px;
-  margin-bottom: 10px;
-}
-
-.meta span {
-  margin-right: 15px;
-}
-
-.preview {
   color: #666;
-  font-size: 14px;
-  line-height: 1.6;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -463,21 +465,25 @@ onMounted(() => {
 .pagination {
   display: flex;
   justify-content: center;
-  gap: 15px;
-  margin-top: 20px;
   align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
 }
 
-.pagination button {
-  padding: 8px 16px;
-  background: #fff;
-  border: 1px solid #ddd;
+.page-btn {
+  padding: 0.5rem 1rem;
+  background: #007bff;
+  color: #fff;
+  border: none;
   border-radius: 4px;
   cursor: pointer;
+  font-size: 14px;
 }
 
-.pagination button:disabled {
-  opacity: 0.5;
+.page-btn:disabled {
+  background: #ccc;
   cursor: not-allowed;
 }
 

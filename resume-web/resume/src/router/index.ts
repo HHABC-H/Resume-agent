@@ -47,9 +47,29 @@ const routes = [
     component: () => import('../views/user/Profile.vue')
   },
   {
+    path: '/resume/edit',
+    name: 'resumeEdit',
+    component: () => import('../views/ResumeEdit.vue')
+  },
+  {
+    path: '/my-resumes',
+    name: 'myResumes',
+    component: () => import('../views/MyResumes.vue')
+  },
+  {
     path: '/reading',
     name: 'reading',
     component: () => import('../views/Reading.vue')
+  },
+  {
+    path: '/my-bookmarks',
+    name: 'myBookmarks',
+    component: () => import('../views/MyBookmarks.vue')
+  },
+  {
+    path: '/article/:id',
+    name: 'articleDetail',
+    component: () => import('../views/ArticleDetail.vue')
   },
   {
     path: '/forum',
@@ -118,6 +138,16 @@ const routes = [
         component: () => import('../views/admin/Permissions.vue')
       },
       {
+        path: 'article-manage',
+        name: 'adminArticleManage',
+        component: () => import('../views/admin/ArticleManage.vue')
+      },
+      {
+        path: 'article-edit/:id?',
+        name: 'adminArticleEdit',
+        component: () => import('../views/admin/ArticleEdit.vue')
+      },
+      {
         path: '',
         redirect: '/admin/dashboard'
       }
@@ -138,7 +168,7 @@ router.beforeEach((to, from) => {
   // 公开路由（不需要登录）- 精确匹配
   const publicRoutes = ['/', '/login', '/register', '/forum', '/forum/essences', '/forum/authors', '/forum/author/', '/reading']
   // 公开路由 - 前缀匹配
-  const publicPrefixRoutes = ['/forum/post/', '/forum/category/', '/forum/author/']
+  const publicPrefixRoutes = ['/forum/post/', '/forum/category/', '/forum/author/', '/article/']
 
   // 管理员路由（以/admin开头）
   const isAdminRoute = to.path.startsWith('/admin')

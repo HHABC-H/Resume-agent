@@ -49,7 +49,7 @@ const submitting = ref(false)
 const loadCategories = async () => {
   try {
     const response = await axios.get('/forum/categories')
-    categories.value = response.data || []
+    categories.value = response.data?.data || response.data || []
   } catch (e) {
     console.error('加载分类失败', e)
   }
@@ -75,11 +75,12 @@ const submitPost = async () => {
       content: content.value.trim(),
       categoryId: categoryId.value ? parseInt(categoryId.value) : null
     })
-    if (response.data.id) {
-      router.push(`/forum/post/${response.data.id}`)
+    if (response.data.code === 200) {
+      alert('发布成功！')
+      router.push('/')
     }
   } catch (e) {
-    alert('发布失败: ' + (e.response?.data?.error || e.message))
+    alert('发布失败: ' + (e.response?.data?.message || e.message))
   } finally {
     submitting.value = false
   }

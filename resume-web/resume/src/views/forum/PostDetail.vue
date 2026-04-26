@@ -22,8 +22,8 @@
       </div>
       <div class="content">{{ post.content }}</div>
       <div class="actions">
-        <button @click="likePost" :class="{ active: liked }">👍 赞 ({{ post.likeCount }})</button>
-        <button @click="dislikePost" :class="{ active: disliked }">👎 踩 ({{ post.dislikeCount }})</button>
+        <button @click="likePost" :disabled="liked || post.liked" :class="{ active: liked || post.liked }">👍 赞 ({{ post.likeCount }})</button>
+        <button @click="dislikePost" :disabled="disliked || post.disliked" :class="{ active: disliked || post.disliked }">👎 踩 ({{ post.dislikeCount }})</button>
       </div>
     </div>
 
@@ -42,8 +42,8 @@
           </div>
           <div class="comment-content">{{ comment.content }}</div>
           <div class="comment-actions">
-            <span @click="likeComment(comment.id)">👍 {{ comment.likeCount }}</span>
-            <span @click="dislikeComment(comment.id)">👎 {{ comment.dislikeCount }}</span>
+            <span @click="likeComment(comment)" :class="{ active: comment.liked }" :style="{ opacity: comment.liked || comment.disliked ? 0.5 : 1 }">👍 {{ comment.likeCount }}</span>
+            <span @click="dislikeComment(comment)" :class="{ active: comment.disliked }" :style="{ opacity: comment.liked || comment.disliked ? 0.5 : 1 }">👎 {{ comment.dislikeCount }}</span>
             <span @click="showReplyForm(comment.id)">回复</span>
           </div>
 
@@ -61,8 +61,8 @@
               </div>
               <div class="comment-content">{{ reply.content }}</div>
               <div class="comment-actions">
-                <span @click="likeComment(reply.id)">👍 {{ reply.likeCount }}</span>
-                <span @click="dislikeComment(reply.id)">👎 {{ reply.dislikeCount }}</span>
+                <span @click="likeComment(reply)" :class="{ active: reply.liked }" :style="{ opacity: reply.liked || reply.disliked ? 0.5 : 1 }">👍 {{ reply.likeCount }}</span>
+                <span @click="dislikeComment(reply)" :class="{ active: reply.disliked }" :style="{ opacity: reply.liked || reply.disliked ? 0.5 : 1 }">👎 {{ reply.dislikeCount }}</span>
               </div>
             </div>
           </div>
@@ -95,9 +95,9 @@ const postId = route.params.id
 const loadPost = async () => {
   try {
     loading.value = true
-    const response = await axios.get(`/forum/post/${postId}`)
-    post.value = response.data
-    comments.value = response.data.comments || []
+    const response = await axios.get(`/forum/post/${postId}/detail`)
+    post.value = response.data.data
+    comments.value = response.data.data.comments || []
   } catch (e) {
     error.value = '加载失败: ' + (e.message || '未知错误')
   } finally {
@@ -106,10 +106,16 @@ const loadPost = async () => {
 }
 
 const likePost = async () => {
+  if (liked.value || post.value.liked) return
+  if (disliked.value || post.value.disliked) {
+    post.value.dislikeCount--
+    disliked.value = false
+    post.value.disliked = false
+  }
   try {
     await axios.post(`/forum/post/${postId}/like`)
     liked.value = true
-    disliked.value = false
+    post.value.liked = true
     post.value.likeCount++
   } catch (e) {
     alert('操作失败')
@@ -117,10 +123,16 @@ const likePost = async () => {
 }
 
 const dislikePost = async () => {
+  if (disliked.value || post.value.disliked) return
+  if (liked.value || post.value.liked) {
+    post.value.likeCount--
+    liked.value = false
+    post.value.liked = false
+  }
   try {
     await axios.post(`/forum/post/${postId}/dislike`)
     disliked.value = true
-    liked.value = false
+    post.value.disliked = true
     post.value.dislikeCount++
   } catch (e) {
     alert('操作失败')
@@ -173,19 +185,23 @@ const submitReply = async (parentId) => {
   }
 }
 
-const likeComment = async (commentId) => {
+const likeComment = async (comment) => {
+  if (comment.liked || comment.disliked) return
   try {
-    await axios.post(`/forum/comment/${commentId}/like`)
-    loadPost()
+    await axios.post(`/forum/comment/${comment.id}/like`)
+    comment.liked = true
+    comment.likeCount++
   } catch (e) {
     alert('操作失败')
   }
 }
 
-const dislikeComment = async (commentId) => {
+const dislikeComment = async (comment) => {
+  if (comment.liked || comment.disliked) return
   try {
-    await axios.post(`/forum/comment/${commentId}/dislike`)
-    loadPost()
+    await axios.post(`/forum/comment/${comment.id}/dislike`)
+    comment.disliked = true
+    comment.dislikeCount++
   } catch (e) {
     alert('操作失败')
   }

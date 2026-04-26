@@ -19,7 +19,7 @@
               <span class="username">{{ username }}</span>
               <div class="avatar">{{ username?.charAt(0).toUpperCase() }}</div>
             </div>
-            <button @click="router.go(-1)" class="btn-primary">返回</button>
+            <button @click="handleLogout" class="btn-logout">退出</button>
           </template>
           <template v-else>
             <router-link to="/login" class="btn-login">登录</router-link>
@@ -110,11 +110,19 @@ const username = localStorage.getItem('username')
 
 const isLoggedIn = computed(() => !!token)
 
+const handleLogout = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('username')
+  localStorage.removeItem('userId')
+  localStorage.removeItem('role')
+  router.push('/login')
+}
+
 const loadAuthors = async () => {
   try {
     loading.value = true
     const response = await axios.get('/forum/hot-authors?limit=50')
-    authors.value = response.data || []
+    authors.value = response.data?.data || response.data || []
   } catch (e) {
     error.value = '加载失败'
   } finally {
@@ -125,7 +133,7 @@ const loadAuthors = async () => {
 const loadCategories = async () => {
   try {
     const response = await axios.get('/forum/categories')
-    categories.value = response.data || []
+    categories.value = response.data?.data || response.data || []
   } catch (e) {
     console.error('加载分类失败', e)
   }
@@ -134,7 +142,7 @@ const loadCategories = async () => {
 const loadHotPosts = async () => {
   try {
     const response = await axios.get('/forum/hot?size=10')
-    hotPosts.value = response.data.content || []
+    hotPosts.value = response.data.data?.content || response.data?.content || []
   } catch (e) {
     console.error('加载热榜失败', e)
   }
@@ -291,6 +299,22 @@ onMounted(() => {
 .btn-register {
   background: #007bff;
   color: #fff;
+}
+
+.btn-logout {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  background: #dc3545;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-logout:hover {
+  background: #c82333;
 }
 
 .main-content {

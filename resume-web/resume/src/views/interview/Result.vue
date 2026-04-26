@@ -8,6 +8,8 @@
         <router-link to="/reading" class="nav-item">在线阅读</router-link>
         <router-link to="/interview/1" class="nav-item">面试助手</router-link>
         <router-link to="/profile" class="nav-item">个人信息</router-link>
+        <router-link to="/history" class="nav-item">查看历史</router-link>
+        <router-link to="/my-bookmarks" class="nav-item">我的收藏</router-link>
         <router-link to="/forum/essences" class="nav-item">精华帖</router-link>
         <router-link to="/forum/authors" class="nav-item">热门作者</router-link>
       </nav>
@@ -19,7 +21,7 @@
               <span class="username">{{ username }}</span>
               <div class="avatar">{{ username?.charAt(0).toUpperCase() }}</div>
             </div>
-            <button @click="router.go(-1)" class="btn-primary">返回</button>
+            <button @click="handleLogout" class="btn-logout">退出</button>
           </template>
           <template v-else>
             <router-link to="/login" class="btn-login">登录</router-link>
@@ -121,6 +123,14 @@ const token = localStorage.getItem('token')
 const username = localStorage.getItem('username')
 
 const isLoggedIn = computed(() => !!token)
+
+const handleLogout = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('username')
+  localStorage.removeItem('userId')
+  localStorage.removeItem('role')
+  router.push('/login')
+}
 
 const resumeId = computed(() => route.params.resumeId as string)
 
@@ -290,6 +300,22 @@ const goBack = () => {
 .btn-register {
   background: #007bff;
   color: #fff;
+}
+
+.btn-logout {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  background: #dc3545;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-logout:hover {
+  background: #c82333;
 }
 
 .main-content {

@@ -9,7 +9,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -47,9 +46,18 @@ public class ForumController {
         Long userId = currentUserId(request);
         ForumPostDetailDTO post = forumService.getPostDetail(id, userId);
         forumService.incrementViewCount(id);
-        
+
         model.addAttribute("post", post);
         return "forum/post-detail";
+    }
+
+    @GetMapping("/post/{id}/detail")
+    @ResponseBody
+    public ApiResponse<ForumPostDetailDTO> getPostDetail(@PathVariable Long id, HttpServletRequest request) {
+        Long userId = currentUserId(request);
+        ForumPostDetailDTO post = forumService.getPostDetail(id, userId);
+        forumService.incrementViewCount(id);
+        return ApiResponse.success(post);
     }
 
     @GetMapping("/publish")
@@ -61,74 +69,74 @@ public class ForumController {
 
     @PostMapping("/post")
     @ResponseBody
-    public ResponseEntity<?> createPost(@RequestBody CreatePostRequest request, HttpServletRequest httpRequest) {
+    public ApiResponse<ForumPostDTO> createPost(@RequestBody CreatePostRequest request, HttpServletRequest httpRequest) {
         Long userId = currentUserId(httpRequest);
         if (userId == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+            return ApiResponse.error(401, "未授权，请先登录");
         }
-        
+
         ForumPostDTO post = forumService.createPost(request, userId);
-        return ResponseEntity.ok(post);
+        return ApiResponse.success("发布成功", post);
     }
 
     @DeleteMapping("/post/{id}")
     @ResponseBody
-    public ResponseEntity<?> deletePost(@PathVariable Long id, HttpServletRequest request) {
+    public ApiResponse<Void> deletePost(@PathVariable Long id, HttpServletRequest request) {
         Long userId = currentUserId(request);
         if (userId == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+            return ApiResponse.error(401, "未授权，请先登录");
         }
-        
+
         try {
             forumService.deletePost(id, userId);
-            return ResponseEntity.ok(Map.of("message", "Post deleted"));
+            return ApiResponse.success("删除成功", null);
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            return ApiResponse.error(400, e.getMessage());
         }
     }
 
     @PostMapping("/post/{id}/like")
     @ResponseBody
-    public ResponseEntity<?> likePost(@PathVariable Long id) {
+    public ApiResponse<Void> likePost(@PathVariable Long id) {
         forumService.likePost(id);
-        return ResponseEntity.ok(Map.of("message", "Liked"));
+        return ApiResponse.success("点赞成功", null);
     }
 
     @PostMapping("/post/{id}/dislike")
     @ResponseBody
-    public ResponseEntity<?> dislikePost(@PathVariable Long id) {
+    public ApiResponse<Void> dislikePost(@PathVariable Long id) {
         forumService.dislikePost(id);
-        return ResponseEntity.ok(Map.of("message", "Disliked"));
+        return ApiResponse.success("点踩成功", null);
     }
 
     @PostMapping("/comment")
     @ResponseBody
-    public ResponseEntity<?> createComment(@RequestBody Map<String, Object> payload, HttpServletRequest request) {
+    public ApiResponse<ForumCommentDTO> createComment(@RequestBody Map<String, Object> payload, HttpServletRequest request) {
         Long userId = currentUserId(request);
         if (userId == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+            return ApiResponse.error(401, "未授权，请先登录");
         }
-        
+
         Long postId = Long.valueOf(payload.get("postId").toString());
         Long parentId = payload.get("parentId") != null ? Long.valueOf(payload.get("parentId").toString()) : null;
         String content = payload.get("content").toString();
-        
+
         ForumCommentDTO comment = forumService.createComment(postId, parentId, content, userId);
-        return ResponseEntity.ok(comment);
+        return ApiResponse.success("评论成功", comment);
     }
 
     @PostMapping("/comment/{id}/like")
     @ResponseBody
-    public ResponseEntity<?> likeComment(@PathVariable Long id) {
+    public ApiResponse<Void> likeComment(@PathVariable Long id) {
         forumService.likeComment(id);
-        return ResponseEntity.ok(Map.of("message", "Liked"));
+        return ApiResponse.success("点赞成功", null);
     }
 
     @PostMapping("/comment/{id}/dislike")
     @ResponseBody
-    public ResponseEntity<?> dislikeComment(@PathVariable Long id) {
+    public ApiResponse<Void> dislikeComment(@PathVariable Long id) {
         forumService.dislikeComment(id);
-        return ResponseEntity.ok(Map.of("message", "Disliked"));
+        return ApiResponse.success("点踩成功", null);
     }
 
     @GetMapping("/category/{id}")
@@ -161,78 +169,78 @@ public class ForumController {
 
     @GetMapping("/categories")
     @ResponseBody
-    public ResponseEntity<?> getCategories() {
-        return ResponseEntity.ok(forumService.getCategories());
+    public ApiResponse<List<ForumCategoryDTO>> getCategories() {
+        return ApiResponse.success(forumService.getCategories());
     }
 
     @GetMapping("/hot")
     @ResponseBody
-    public ResponseEntity<?> getHotPosts(@RequestParam(defaultValue = "0") int page,
+    public ApiResponse<Page<ForumPostDTO>> getHotPosts(@RequestParam(defaultValue = "0") int page,
                                         @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(forumService.getHotPosts(PageRequest.of(page, size)));
+        return ApiResponse.success(forumService.getHotPosts(PageRequest.of(page, size)));
     }
 
     @GetMapping("/hot-authors")
     @ResponseBody
-    public ResponseEntity<?> getHotAuthors(@RequestParam(defaultValue = "10") int limit) {
-        return ResponseEntity.ok(forumService.getHotAuthors(limit));
+    public ApiResponse<List<HotAuthorDTO>> getHotAuthors(@RequestParam(defaultValue = "10") int limit) {
+        return ApiResponse.success(forumService.getHotAuthors(limit));
     }
 
     @GetMapping("/author/{id}/posts")
     @ResponseBody
-    public ResponseEntity<?> getAuthorPosts(@PathVariable Long id,
+    public ApiResponse<Page<ForumPostDTO>> getAuthorPosts(@PathVariable Long id,
                                            @RequestParam(defaultValue = "0") int page,
                                            @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return ResponseEntity.ok(forumService.getPostsByAuthor(id, pageable));
+        return ApiResponse.success(forumService.getPostsByAuthor(id, pageable));
     }
 
     @PostMapping("/admin/essence/{id}")
     @ResponseBody
-    public ResponseEntity<?> setEssence(@PathVariable Long id, HttpServletRequest request) {
+    public ApiResponse<Void> setEssence(@PathVariable Long id, HttpServletRequest request) {
         Long userId = currentUserId(request);
         if (userId == null || !isAdmin(request)) {
-            return ResponseEntity.status(403).body(Map.of("error", "Forbidden"));
+            return ApiResponse.error(403, "无权限操作");
         }
-        
+
         forumService.setEssence(id, userId);
-        return ResponseEntity.ok(Map.of("message", "Essence set"));
+        return ApiResponse.success("设置精华成功", null);
     }
 
     @DeleteMapping("/admin/essence/{id}")
     @ResponseBody
-    public ResponseEntity<?> removeEssence(@PathVariable Long id, HttpServletRequest request) {
+    public ApiResponse<Void> removeEssence(@PathVariable Long id, HttpServletRequest request) {
         Long userId = currentUserId(request);
         if (userId == null || !isAdmin(request)) {
-            return ResponseEntity.status(403).body(Map.of("error", "Forbidden"));
+            return ApiResponse.error(403, "无权限操作");
         }
-        
+
         forumService.removeEssence(id);
-        return ResponseEntity.ok(Map.of("message", "Essence removed"));
+        return ApiResponse.success("取消精华成功", null);
     }
 
     @PostMapping("/admin/top/{id}")
     @ResponseBody
-    public ResponseEntity<?> setTop(@PathVariable Long id, HttpServletRequest request) {
+    public ApiResponse<Void> setTop(@PathVariable Long id, HttpServletRequest request) {
         Long userId = currentUserId(request);
         if (userId == null || !isAdmin(request)) {
-            return ResponseEntity.status(403).body(Map.of("error", "Forbidden"));
+            return ApiResponse.error(403, "无权限操作");
         }
-        
+
         forumService.setTop(id, userId);
-        return ResponseEntity.ok(Map.of("message", "Top set"));
+        return ApiResponse.success("置顶成功", null);
     }
 
     @DeleteMapping("/admin/top/{id}")
     @ResponseBody
-    public ResponseEntity<?> removeTop(@PathVariable Long id, HttpServletRequest request) {
+    public ApiResponse<Void> removeTop(@PathVariable Long id, HttpServletRequest request) {
         Long userId = currentUserId(request);
         if (userId == null || !isAdmin(request)) {
-            return ResponseEntity.status(403).body(Map.of("error", "Forbidden"));
+            return ApiResponse.error(403, "无权限操作");
         }
-        
+
         forumService.removeTop(id);
-        return ResponseEntity.ok(Map.of("message", "Top removed"));
+        return ApiResponse.success("取消置顶成功", null);
     }
 
     private Long currentUserId(HttpServletRequest request) {

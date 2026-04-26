@@ -331,6 +331,56 @@ SELECT
 FROM resume_session rs;
 
 -- =====================================================
+-- 14. 简历编辑会话表
+-- =====================================================
+CREATE TABLE IF NOT EXISTS `resume_edit_session` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `user_id` BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
+  `structured_data` JSON NOT NULL COMMENT '结构化简历数据',
+  `resume_text` MEDIUMTEXT NOT NULL COMMENT '合并后的文本简历',
+  `status` VARCHAR(20) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT-草稿/PUBLISHED-已保存',
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+  `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_resume_edit_session_user_id` (`user_id`),
+  KEY `idx_resume_edit_session_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='简历编辑会话表';
+
+-- =====================================================
+-- 15. 八股文文章表
+-- =====================================================
+CREATE TABLE IF NOT EXISTS `article` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '文章ID',
+  `title` VARCHAR(200) NOT NULL COMMENT '文章标题',
+  `content` TEXT NOT NULL COMMENT '文章内容',
+  `category` VARCHAR(50) NOT NULL COMMENT '分类',
+  `tags` VARCHAR(500) NULL COMMENT '标签',
+  `author_id` BIGINT UNSIGNED NOT NULL COMMENT '作者ID',
+  `read_count` INT NOT NULL DEFAULT 0 COMMENT '阅读数',
+  `status` VARCHAR(20) NOT NULL DEFAULT 'PUBLISHED' COMMENT '状态',
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+  `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_article_category` (`category`),
+  KEY `idx_article_status` (`status`),
+  KEY `idx_article_author` (`author_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='八股文文章表';
+
+-- =====================================================
+-- 16. 文章收藏表
+-- =====================================================
+CREATE TABLE IF NOT EXISTS `article_bookmark` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `user_id` BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
+  `article_id` BIGINT UNSIGNED NOT NULL COMMENT '文章ID',
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '收藏时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_article_bookmark_user` (`user_id`),
+  KEY `idx_article_bookmark_article` (`article_id`),
+  UNIQUE KEY `uk_user_article` (`user_id`, `article_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文章收藏表';
+
+-- =====================================================
 -- 数据验证
 -- =====================================================
 SELECT 'User table:' AS '';
