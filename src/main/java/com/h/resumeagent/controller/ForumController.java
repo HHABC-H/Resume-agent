@@ -29,16 +29,12 @@ public class ForumController {
     }
 
     @GetMapping
-    public String index(@RequestParam(defaultValue = "0") int page, 
-                       @RequestParam(defaultValue = "20") int size,
-                       Model model) {
+    @ResponseBody
+    public ApiResponse<Page<ForumPostDTO>> getPosts(@RequestParam(defaultValue = "0") int page,
+                       @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<ForumPostDTO> posts = forumService.getPosts(pageable);
-        List<ForumCategoryDTO> categories = forumService.getCategories();
-        
-        model.addAttribute("posts", posts);
-        model.addAttribute("categories", categories);
-        return "forum/index";
+        return ApiResponse.success(posts);
     }
 
     @GetMapping("/post/{id}")
@@ -139,19 +135,28 @@ public class ForumController {
         return ApiResponse.success("点踩成功", null);
     }
 
+    @DeleteMapping("/comment/{id}/like")
+    @ResponseBody
+    public ApiResponse<Void> unlikeComment(@PathVariable Long id) {
+        forumService.unlikeComment(id);
+        return ApiResponse.success("取消点赞成功", null);
+    }
+
+    @DeleteMapping("/comment/{id}/dislike")
+    @ResponseBody
+    public ApiResponse<Void> undislikeComment(@PathVariable Long id) {
+        forumService.undislikeComment(id);
+        return ApiResponse.success("取消点踩成功", null);
+    }
+
     @GetMapping("/category/{id}")
-    public String category(@PathVariable Long id,
+    @ResponseBody
+    public ApiResponse<Page<ForumPostDTO>> getPostsByCategory(@PathVariable Long id,
                           @RequestParam(defaultValue = "0") int page,
-                          @RequestParam(defaultValue = "20") int size,
-                          Model model) {
+                          @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<ForumPostDTO> posts = forumService.getPostsByCategory(id, pageable);
-        List<ForumCategoryDTO> categories = forumService.getCategories();
-        
-        model.addAttribute("posts", posts);
-        model.addAttribute("categories", categories);
-        model.addAttribute("currentCategoryId", id);
-        return "forum/category";
+        return ApiResponse.success(posts);
     }
 
     @GetMapping("/essences")

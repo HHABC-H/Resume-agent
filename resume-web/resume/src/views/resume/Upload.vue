@@ -122,7 +122,7 @@ const error = ref('')
 
 const loadCategories = async () => {
   try {
-    const response = await axios.get('/forum/categories')
+    const response = await axios.get('/api/forum/categories')
     categories.value = response.data?.data || response.data || []
   } catch (e) {
     console.error('加载分类失败', e)
@@ -131,7 +131,7 @@ const loadCategories = async () => {
 
 const loadHotPosts = async () => {
   try {
-    const response = await axios.get('/forum/hot?size=10')
+    const response = await axios.get('/api/forum/hot?size=10')
     hotPosts.value = response.data.content || []
   } catch (e) {
     console.error('加载热榜失败', e)
@@ -156,7 +156,7 @@ const uploadResume = async () => {
     formData.append('file', selectedFile.value)
     formData.append('positionType', positionType.value)
 
-    const response = await axios.post('/resume/upload', formData, {
+    const response = await axios.post('/api/resume/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
         'Authorization': `Bearer ${token}`

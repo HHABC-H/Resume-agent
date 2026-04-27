@@ -48,7 +48,7 @@ const submitting = ref(false)
 
 const loadCategories = async () => {
   try {
-    const response = await axios.get('/forum/categories')
+    const response = await axios.get('/api/forum/categories')
     categories.value = response.data?.data || response.data || []
   } catch (e) {
     console.error('加载分类失败', e)
@@ -70,7 +70,7 @@ const submitPost = async () => {
 
   try {
     submitting.value = true
-    const response = await axios.post('/forum/post', {
+    const response = await axios.post('/api/forum/post', {
       title: title.value.trim(),
       content: content.value.trim(),
       categoryId: categoryId.value ? parseInt(categoryId.value) : null

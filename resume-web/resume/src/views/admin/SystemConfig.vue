@@ -153,7 +153,7 @@ const loadAIConfig = async () => {
   aiConfigError.value = ''
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/admin/ai-config', {
+    const response = await axios.get('/api/admin/ai-config', {
       headers: { Authorization: `Bearer ${token}` }
     })
     aiConfig.value = response.data
@@ -167,7 +167,7 @@ const loadAIConfig = async () => {
 const updateAIConfig = async () => {
   try {
     const token = localStorage.getItem('token')
-    await axios.put('/admin/ai-config', aiConfig.value, {
+    await axios.put('/api/admin/ai-config', aiConfig.value, {
       headers: { Authorization: `Bearer ${token}` }
     })
     aiConfigEditing.value = false
@@ -181,7 +181,7 @@ const loadSystemLimits = async () => {
   systemLimitsError.value = ''
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/admin/system-limits', {
+    const response = await axios.get('/api/admin/system-limits', {
       headers: { Authorization: `Bearer ${token}` }
     })
     systemLimits.value = response.data
@@ -195,7 +195,7 @@ const loadSystemLimits = async () => {
 const updateSystemLimits = async () => {
   try {
     const token = localStorage.getItem('token')
-    await axios.put('/admin/system-limits', systemLimits.value, {
+    await axios.put('/api/admin/system-limits', systemLimits.value, {
       headers: { Authorization: `Bearer ${token}` }
     })
     systemLimitsEditing.value = false
@@ -209,7 +209,7 @@ const loadPromptTemplates = async () => {
   promptTemplatesError.value = ''
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/admin/prompt-templates', {
+    const response = await axios.get('/api/admin/prompt-templates', {
       headers: { Authorization: `Bearer ${token}` }
     })
     promptTemplates.value = response.data

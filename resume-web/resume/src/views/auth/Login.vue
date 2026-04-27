@@ -42,13 +42,13 @@ const login = async () => {
   loading.value = true
   error.value = ''
   try {
-    const response = await axios.post('/auth/login', form.value)
+    const response = await axios.post('/api/auth/login', form.value)
     if (response.data.token) {
       localStorage.setItem('token', response.data.token)
       localStorage.setItem('username', response.data.username)
       localStorage.setItem('userId', response.data.userId)
       
-      const userResponse = await axios.get('/auth/me', {
+      const userResponse = await axios.get('/api/auth/me', {
         headers: { Authorization: `Bearer ${response.data.token}` }
       })
       const role = userResponse.data.role || 'USER'

@@ -72,7 +72,7 @@ const totalPages = ref(1)
 const loadPosts = async (pageNum = 0) => {
   try {
     loading.value = true
-    const response = await axios.get(`/forum?page=${pageNum}&size=20`)
+    const response = await axios.get(`/api/forum?page=${pageNum}&size=20`)
     posts.value = response.data.content || []
     totalPages.value = response.data.totalPages || 1
     page.value = pageNum
@@ -85,8 +85,8 @@ const loadPosts = async (pageNum = 0) => {
 
 const loadCategories = async () => {
   try {
-    const response = await axios.get('/forum/categories')
-    categories.value = response.data || []
+    const response = await axios.get('/api/forum/categories')
+    categories.value = response.data?.data || []
   } catch (e) {
     console.error('加载分类失败', e)
   }

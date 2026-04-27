@@ -186,9 +186,9 @@ const handleLogout = () => {
 const loadPosts = async (pageNum = 0) => {
   try {
     loading.value = true
-    let url = `/forum?page=${pageNum}&size=20`
+    let url = `/api/forum?page=${pageNum}&size=20`
     if (currentTab.value === 'hot') {
-      url = `/forum/hot?page=${pageNum}&size=20`
+      url = `/api/forum/hot?page=${pageNum}&size=20`
     }
     const response = await axios.get(url)
     posts.value = response.data.data?.content || response.data?.content || []
@@ -203,8 +203,8 @@ const loadPosts = async (pageNum = 0) => {
 
 const loadCategories = async () => {
   try {
-    const response = await axios.get('/forum/categories')
-    categories.value = response.data?.data || response.data || []
+    const response = await axios.get('/api/forum/categories')
+    categories.value = response.data?.data || []
   } catch (e) {
     console.error('加载分类失败', e)
   }
@@ -212,7 +212,7 @@ const loadCategories = async () => {
 
 const loadHotPosts = async () => {
   try {
-    const response = await axios.get('/forum/hot?size=10')
+    const response = await axios.get('/api/forum/hot?size=10')
     hotPosts.value = response.data.data?.content || response.data?.content || []
   } catch (e) {
     console.error('加载热榜失败', e)
@@ -221,7 +221,7 @@ const loadHotPosts = async () => {
 
 const loadHotAuthors = async () => {
   try {
-    const response = await axios.get('/forum/hot-authors')
+    const response = await axios.get('/api/forum/hot-authors')
     hotAuthors.value = response.data?.data || response.data || []
   } catch (e) {
     console.error('加载热门作者失败', e)

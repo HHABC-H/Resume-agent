@@ -30,6 +30,10 @@
           <i class="nav-icon">🔐</i>
           <span>权限管理</span>
         </router-link>
+        <router-link to="/admin/article-manage" class="nav-item">
+          <i class="nav-icon">📝</i>
+          <span>文章管理</span>
+        </router-link>
       </nav>
       
       <div class="sidebar-footer">
@@ -85,7 +89,9 @@ const pageTitle = computed(() => {
     '/admin/resume-history': '简历管理',
     '/admin/interview-history': '面试管理',
     '/admin/system-config': '系统配置',
-    '/admin/permissions': '权限管理'
+    '/admin/permissions': '权限管理',
+    '/admin/article-manage': '文章管理',
+    '/admin/article-edit': '文章编辑'
   }
   return titles[path] || '管理后台'
 })
@@ -116,7 +122,7 @@ onMounted(() => {
 
 /* 侧边栏 */
 .admin-sidebar {
-  width: 280px;
+  width: 260px;
   background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
   color: white;
   display: flex;
@@ -218,7 +224,7 @@ onMounted(() => {
 /* 主内容区 */
 .admin-main {
   flex: 1;
-  margin-left: 280px;
+  margin-left: 260px;
   min-height: 100vh;
 }
 

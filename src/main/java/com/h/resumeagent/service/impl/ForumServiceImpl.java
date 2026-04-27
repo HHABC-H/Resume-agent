@@ -42,7 +42,8 @@ public class ForumServiceImpl implements ForumService {
 
     @Override
     public Page<ForumPostDTO> getPosts(Pageable pageable) {
-        return postRepository.findAllByOrderByCreatedAtDesc(pageable)
+        LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
+        return postRepository.findTodayPosts(startOfDay, pageable)
                 .map(this::toPostDTO);
     }
 
@@ -180,6 +181,16 @@ public class ForumServiceImpl implements ForumService {
     @Override
     public void dislikeComment(Long commentId) {
         commentRepository.incrementDislikeCount(commentId);
+    }
+
+    @Override
+    public void unlikeComment(Long commentId) {
+        commentRepository.decrementLikeCount(commentId);
+    }
+
+    @Override
+    public void undislikeComment(Long commentId) {
+        commentRepository.decrementDislikeCount(commentId);
     }
 
     @Override

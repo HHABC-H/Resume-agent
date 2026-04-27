@@ -70,7 +70,7 @@ const recentActivities = ref<any[]>([])
 const loadStats = async () => {
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/admin/stats', {
+    const response = await axios.get('/api/admin/stats', {
       headers: { Authorization: `Bearer ${token}` }
     })
     stats.value = response.data
@@ -82,7 +82,7 @@ const loadStats = async () => {
 const loadRecentActivities = async () => {
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/admin/recent-activities', {
+    const response = await axios.get('/api/admin/recent-activities', {
       headers: { Authorization: `Bearer ${token}` }
     })
     recentActivities.value = response.data

@@ -12,7 +12,7 @@
         <option value="">全部分类</option>
         <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
       </select>
-      <button @click="handleSearch" class="search-btn">搜索</button>
+      <button @click="handleSearch" class="search-btn">🔍 搜索文章</button>
     </div>
 
     <div v-if="loading" class="loading">加载中...</div>
@@ -181,63 +181,98 @@ onMounted(() => {
   margin-bottom: 1.5rem;
 }
 
-.back-btn {
-  padding: 0.5rem 1rem;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+.back-btn, .btn-add {
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
   cursor: pointer;
-  color: #666;
   font-size: 14px;
+  font-weight: 500;
+}
+
+.back-btn {
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  color: #606266;
+}
+
+.back-btn:hover {
+  border-color: #409eff;
+  color: #409eff;
 }
 
 .page-title {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
-  color: #333;
+  color: #303133;
   flex: 1;
 }
 
 .btn-add {
-  padding: 0.6rem 1.2rem;
-  background: #007bff;
+  background: #409eff;
   color: #fff;
   border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
+}
+
+.btn-add:hover {
+  background: #66b1ff;
 }
 
 .filter-bar {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.75rem;
   margin-bottom: 1rem;
+  align-items: center;
 }
 
 .search-input {
-  flex: 1;
-  padding: 0.6rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  flex: 3;
+  min-width: 200px;
+  height: 36px;
+  padding: 0 1rem;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
   font-size: 14px;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: #409eff;
 }
 
 .filter-select {
-  padding: 0.6rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  flex: 1;
+  min-width: 140px;
+  height: 36px;
+  padding: 0 2rem 0 1rem;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
   font-size: 14px;
+  outline: none;
+  background: #fff;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2360666f' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+}
+
+.filter-select:focus {
+  border-color: #409eff;
 }
 
 .search-btn {
   padding: 0.6rem 1.2rem;
-  background: #007bff;
+  background: #409eff;
   color: #fff;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
+  font-weight: 500;
+}
+
+.search-btn:hover {
+  background: #66b1ff;
 }
 
 .loading, .empty {
@@ -299,7 +334,7 @@ td {
 }
 
 .btn-edit, .btn-delete {
-  padding: 0.4rem 0.8rem;
+  padding: 0.5rem 1rem;
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -308,13 +343,21 @@ td {
 }
 
 .btn-edit {
-  background: #007bff;
+  background: #409eff;
   color: #fff;
 }
 
+.btn-edit:hover {
+  background: #66b1ff;
+}
+
 .btn-delete {
-  background: #dc3545;
+  background: #f56c6c;
   color: #fff;
+}
+
+.btn-delete:hover {
+  background: #f78989;
 }
 
 .pagination {
@@ -327,12 +370,16 @@ td {
 
 .page-btn {
   padding: 0.5rem 1rem;
-  background: #007bff;
+  background: #409eff;
   color: #fff;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: #66b1ff;
 }
 
 .page-btn:disabled {

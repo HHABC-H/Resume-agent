@@ -181,7 +181,7 @@ const loadInterviewHistory = async (page: number = 0) => {
   interviewHistoryError.value = ''
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/admin/interview-history', {
+    const response = await axios.get('/api/admin/interview-history', {
       headers: { Authorization: `Bearer ${token}` },
       params: { page, size: pageSize.value }
     })

@@ -16,7 +16,8 @@ public interface ArticleRepository extends JpaRepository<ArticleEntity, Long> {
     Page<ArticleEntity> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
     Page<ArticleEntity> findByCategoryAndStatusOrderByCreatedAtDesc(String category, String status, Pageable pageable);
     Page<ArticleEntity> findByTitleContainingAndStatusOrderByCreatedAtDesc(String keyword, String status, Pageable pageable);
-    List<String> findDistinctCategoryByStatus(String status);
+    @Query("SELECT DISTINCT a.category FROM ArticleEntity a WHERE a.status = :status AND a.category IS NOT NULL")
+List<String> findDistinctCategoryByStatus(@Param("status") String status);
 
     @Modifying
     @Query("UPDATE ArticleEntity a SET a.readCount = a.readCount + 1 WHERE a.id = :id")

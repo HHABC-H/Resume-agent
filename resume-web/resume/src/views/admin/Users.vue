@@ -136,7 +136,7 @@ const loadUsers = async () => {
   error.value = ''
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/admin/users', {
+    const response = await axios.get('/api/admin/users', {
       headers: { Authorization: `Bearer ${token}` }
     })
     users.value = response.data

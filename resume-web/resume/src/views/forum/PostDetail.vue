@@ -95,7 +95,7 @@ const postId = route.params.id
 const loadPost = async () => {
   try {
     loading.value = true
-    const response = await axios.get(`/forum/post/${postId}/detail`)
+    const response = await axios.get(`/api/forum/post/${postId}/detail`)
     post.value = response.data.data
     comments.value = response.data.data.comments || []
   } catch (e) {
@@ -113,7 +113,7 @@ const likePost = async () => {
     post.value.disliked = false
   }
   try {
-    await axios.post(`/forum/post/${postId}/like`)
+    await axios.post(`/api/forum/post/${postId}/like`)
     liked.value = true
     post.value.liked = true
     post.value.likeCount++
@@ -130,7 +130,7 @@ const dislikePost = async () => {
     post.value.liked = false
   }
   try {
-    await axios.post(`/forum/post/${postId}/dislike`)
+    await axios.post(`/api/forum/post/${postId}/dislike`)
     disliked.value = true
     post.value.disliked = true
     post.value.dislikeCount++
@@ -145,7 +145,7 @@ const submitComment = async () => {
     return
   }
   try {
-    await axios.post('/forum/comment', {
+    await axios.post('/api/forum/comment', {
       postId: parseInt(postId),
       content: commentContent.value
     })
@@ -172,7 +172,7 @@ const submitReply = async (parentId) => {
     return
   }
   try {
-    await axios.post('/forum/comment', {
+    await axios.post('/api/forum/comment', {
       postId: parseInt(postId),
       parentId: parentId,
       content: replyContent.value
@@ -186,9 +186,30 @@ const submitReply = async (parentId) => {
 }
 
 const likeComment = async (comment) => {
-  if (comment.liked || comment.disliked) return
+  if (comment.liked) {
+    try {
+      await axios.delete(`/api/forum/comment/${comment.id}/like`)
+      comment.liked = false
+      comment.likeCount--
+    } catch (e) {
+      alert('操作失败')
+    }
+    return
+  }
+  if (comment.disliked) {
+    try {
+      await axios.post(`/api/forum/comment/${comment.id}/like`)
+      comment.disliked = false
+      comment.dislikeCount--
+      comment.liked = true
+      comment.likeCount++
+    } catch (e) {
+      alert('操作失败')
+    }
+    return
+  }
   try {
-    await axios.post(`/forum/comment/${comment.id}/like`)
+    await axios.post(`/api/forum/comment/${comment.id}/like`)
     comment.liked = true
     comment.likeCount++
   } catch (e) {
@@ -197,9 +218,30 @@ const likeComment = async (comment) => {
 }
 
 const dislikeComment = async (comment) => {
-  if (comment.liked || comment.disliked) return
+  if (comment.disliked) {
+    try {
+      await axios.delete(`/api/forum/comment/${comment.id}/dislike`)
+      comment.disliked = false
+      comment.dislikeCount--
+    } catch (e) {
+      alert('操作失败')
+    }
+    return
+  }
+  if (comment.liked) {
+    try {
+      await axios.post(`/api/forum/comment/${comment.id}/dislike`)
+      comment.liked = false
+      comment.likeCount--
+      comment.disliked = true
+      comment.dislikeCount++
+    } catch (e) {
+      alert('操作失败')
+    }
+    return
+  }
   try {
-    await axios.post(`/forum/comment/${comment.id}/dislike`)
+    await axios.post(`/api/forum/comment/${comment.id}/dislike`)
     comment.disliked = true
     comment.dislikeCount++
   } catch (e) {

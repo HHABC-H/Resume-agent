@@ -149,6 +149,7 @@ const routes = [
       },
       {
         path: '',
+        name: 'adminDefault',
         redirect: '/admin/dashboard'
       }
     ]

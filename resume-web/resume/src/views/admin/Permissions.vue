@@ -9,36 +9,17 @@
       <div class="card-header">
         <h3>角色和权限</h3>
       </div>
-      
+
       <div v-if="rolesLoading" class="loading">加载中...</div>
       <div v-else-if="rolesError" class="error-message">{{ rolesError }}</div>
       <div v-else class="roles-content">
-        <div v-if="roles.message" class="message">
-          {{ roles.message }}
-        </div>
-        <div v-else>
-          <div class="roles-list">
-            <!-- 这里可以添加角色和权限的具体内容 -->
-            <div class="role-item">
-              <h4>管理员 (ADMIN)</h4>
-              <p>拥有系统所有权限</p>
-              <ul class="permissions-list">
-                <li>查看所有用户</li>
-                <li>管理所有简历分析</li>
-                <li>管理所有面试历史</li>
-                <li>配置系统参数</li>
-                <li>管理角色权限</li>
-              </ul>
-            </div>
-            <div class="role-item">
-              <h4>普通用户 (USER)</h4>
-              <p>拥有基本使用权限</p>
-              <ul class="permissions-list">
-                <li>上传和分析自己的简历</li>
-                <li>参加面试评估</li>
-                <li>查看自己的历史记录</li>
-              </ul>
-            </div>
+        <div class="roles-list">
+          <div v-for="role in roles" :key="role.name" class="role-item">
+            <h4>{{ role.name === 'ADMIN' ? '管理员 (ADMIN)' : '普通用户 (USER)' }}</h4>
+            <p>{{ role.description }}</p>
+            <ul class="permissions-list">
+              <li v-for="(perm, index) in role.permissions" :key="index">{{ perm }}</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -84,7 +65,7 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 
-const roles = ref<any>(null)
+const roles = ref<any[]>([])
 const rolesLoading = ref(false)
 const rolesError = ref('')
 
@@ -100,12 +81,12 @@ const loadRoles = async () => {
   rolesError.value = ''
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/admin/roles', {
+    const response = await axios.get('/api/admin/roles', {
       headers: { Authorization: `Bearer ${token}` }
     })
-    roles.value = response.data
+    roles.value = response.data.roles || []
   } catch (err: any) {
-    rolesError.value = err.response?.data?.error || '加载角色失败'
+    rolesError.value = err.response?.data?.error || '加载角色失败: ' + err.message
   } finally {
     rolesLoading.value = false
   }
@@ -116,12 +97,12 @@ const loadUsers = async () => {
   usersError.value = ''
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/admin/users', {
+    const response = await axios.get('/api/admin/users', {
       headers: { Authorization: `Bearer ${token}` }
     })
-    users.value = response.data
+    users.value = response.data || []
   } catch (err: any) {
-    usersError.value = err.response?.data?.error || '加载用户列表失败'
+    usersError.value = err.response?.data?.error || '加载用户列表失败: ' + err.message
   } finally {
     usersLoading.value = false
   }

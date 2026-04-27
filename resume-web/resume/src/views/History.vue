@@ -166,7 +166,7 @@ const loadHistory = async () => {
   loading.value = true
   error.value = ''
   try {
-    const response = await axios.get('/history/data', {
+    const response = await axios.get('/api/history/data', {
       headers: { Authorization: `Bearer ${token}` }
     })
     history.value = response.data

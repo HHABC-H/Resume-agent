@@ -23,4 +23,12 @@ public interface ForumCommentRepository extends JpaRepository<ForumCommentEntity
     @Modifying
     @Query("UPDATE ForumCommentEntity c SET c.dislikeCount = c.dislikeCount + 1 WHERE c.id = :id")
     void incrementDislikeCount(@Param("id") Long id);
+
+    @Modifying
+    @Query("UPDATE ForumCommentEntity c SET c.likeCount = c.likeCount - 1 WHERE c.id = :id AND c.likeCount > 0")
+    void decrementLikeCount(@Param("id") Long id);
+
+    @Modifying
+    @Query("UPDATE ForumCommentEntity c SET c.dislikeCount = c.dislikeCount - 1 WHERE c.id = :id AND c.dislikeCount > 0")
+    void decrementDislikeCount(@Param("id") Long id);
 }

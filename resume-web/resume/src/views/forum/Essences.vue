@@ -131,7 +131,7 @@ const loadPosts = async (pageNum = 0) => {
   try {
     loading.value = true
     error.value = ''
-    const response = await axios.get(`/forum/essences?page=${pageNum}&size=20`)
+    const response = await axios.get(`/api/forum/essences?page=${pageNum}&size=20`)
     posts.value = response.data.data?.content || response.data?.content || []
     totalPages.value = response.data.data?.totalPages || response.data?.totalPages || 1
     page.value = pageNum
@@ -144,7 +144,7 @@ const loadPosts = async (pageNum = 0) => {
 
 const loadCategories = async () => {
   try {
-    const response = await axios.get('/forum/categories')
+    const response = await axios.get('/api/forum/categories')
     categories.value = response.data?.data || response.data || []
   } catch (e) {
     console.error('加载分类失败', e)
@@ -153,7 +153,7 @@ const loadCategories = async () => {
 
 const loadHotPosts = async () => {
   try {
-    const response = await axios.get('/forum/hot?size=10')
+    const response = await axios.get('/api/forum/hot?size=10')
     hotPosts.value = response.data.content || []
   } catch (e) {
     console.error('加载热榜失败', e)

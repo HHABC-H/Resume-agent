@@ -21,9 +21,13 @@ public interface ForumService {
 
     void likePost(Long postId);
     void dislikePost(Long postId);
-    void likeComment(Long commentId);
+void likeComment(Long commentId);
+
     void dislikeComment(Long commentId);
 
+    void unlikeComment(Long commentId);
+
+    void undislikeComment(Long commentId);
     void setEssence(Long postId, Long operatorId);
     void removeEssence(Long postId);
     void setTop(Long postId, Long operatorId);

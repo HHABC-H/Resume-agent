@@ -347,7 +347,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 
@@ -412,7 +412,7 @@ const loadUsers = async () => {
   loading.value = true
   error.value = ''
   try {
-    const response = await axios.get('/admin/users', {
+    const response = await axios.get('/api/admin/users', {
       headers: { Authorization: `Bearer ${token}` }
     })
     users.value = response.data
@@ -489,7 +489,7 @@ const loadResumeHistory = async () => {
   resumeHistoryLoading.value = true
   resumeHistoryError.value = ''
   try {
-    const response = await axios.get('/admin/resume-history', {
+    const response = await axios.get('/api/admin/resume-history', {
       headers: { Authorization: `Bearer ${token}` }
     })
     resumeHistory.value = response.data
@@ -502,7 +502,7 @@ const loadResumeHistory = async () => {
 
 const exportResumeHistory = async () => {
   try {
-    const response = await axios.get('/admin/resume-history/export', {
+    const response = await axios.get('/api/admin/resume-history/export', {
       headers: { Authorization: `Bearer ${token}` },
       responseType: 'blob'
     })
@@ -522,7 +522,7 @@ const loadInterviewHistory = async () => {
   interviewHistoryLoading.value = true
   interviewHistoryError.value = ''
   try {
-    const response = await axios.get('/admin/interview-history', {
+    const response = await axios.get('/api/admin/interview-history', {
       headers: { Authorization: `Bearer ${token}` }
     })
     interviewHistory.value = response.data
@@ -537,7 +537,7 @@ const loadInterviewTemplates = async () => {
   interviewTemplatesLoading.value = true
   interviewTemplatesError.value = ''
   try {
-    const response = await axios.get('/admin/interview-templates', {
+    const response = await axios.get('/api/admin/interview-templates', {
       headers: { Authorization: `Bearer ${token}` }
     })
     interviewTemplates.value = response.data
@@ -552,7 +552,7 @@ const loadAIConfig = async () => {
   aiConfigLoading.value = true
   aiConfigError.value = ''
   try {
-    const response = await axios.get('/admin/system-config/ai', {
+    const response = await axios.get('/api/admin/system-config/ai', {
       headers: { Authorization: `Bearer ${token}` }
     })
     aiConfig.value = response.data
@@ -567,7 +567,7 @@ const updateAIConfig = async () => {
   aiConfigLoading.value = true
   aiConfigError.value = ''
   try {
-    const response = await axios.put('/admin/system-config/ai', aiConfig.value, {
+    const response = await axios.put('/api/admin/system-config/ai', aiConfig.value, {
       headers: { Authorization: `Bearer ${token}` }
     })
     alert('AI配置更新成功')
@@ -583,7 +583,7 @@ const loadPromptTemplates = async () => {
   promptTemplatesLoading.value = true
   promptTemplatesError.value = ''
   try {
-    const response = await axios.get('/admin/system-config/prompts', {
+    const response = await axios.get('/api/admin/system-config/prompts', {
       headers: { Authorization: `Bearer ${token}` }
     })
     promptTemplates.value = response.data
@@ -598,7 +598,7 @@ const loadSystemLimits = async () => {
   systemLimitsLoading.value = true
   systemLimitsError.value = ''
   try {
-    const response = await axios.get('/admin/system-config/limits', {
+    const response = await axios.get('/api/admin/system-config/limits', {
       headers: { Authorization: `Bearer ${token}` }
     })
     systemLimits.value = response.data
@@ -613,7 +613,7 @@ const updateSystemLimits = async () => {
   systemLimitsLoading.value = true
   systemLimitsError.value = ''
   try {
-    const response = await axios.put('/admin/system-config/limits', systemLimits.value, {
+    const response = await axios.put('/api/admin/system-config/limits', systemLimits.value, {
       headers: { Authorization: `Bearer ${token}` }
     })
     alert('系统限制更新成功')
@@ -629,7 +629,7 @@ const loadRoles = async () => {
   rolesLoading.value = true
   rolesError.value = ''
   try {
-    const response = await axios.get('/admin/permissions/roles', {
+    const response = await axios.get('/api/admin/permissions/roles', {
       headers: { Authorization: `Bearer ${token}` }
     })
     roles.value = response.data.roles
@@ -682,6 +682,33 @@ onMounted(() => {
   } else if (currentPath.value === '/admin/permissions') {
     loadRoles()
     loadUsers() // 加载用户列表用于角色分配
+  }
+})
+
+watch(currentPath, () => {
+  if (!token) {
+    router.push('/login')
+    return
+  }
+  const role = localStorage.getItem('role')
+  if (role !== 'ADMIN') {
+    router.push('/')
+    return
+  }
+  if (currentPath.value === '/admin' || currentPath.value === '/admin/dashboard') {
+    loadUsers()
+  } else if (currentPath.value === '/admin/resume-history') {
+    loadResumeHistory()
+  } else if (currentPath.value === '/admin/interview-history') {
+    loadInterviewHistory()
+    loadInterviewTemplates()
+  } else if (currentPath.value === '/admin/system-config') {
+    loadAIConfig()
+    loadPromptTemplates()
+    loadSystemLimits()
+  } else if (currentPath.value === '/admin/permissions') {
+    loadRoles()
+    loadUsers()
   }
 })
 </script>

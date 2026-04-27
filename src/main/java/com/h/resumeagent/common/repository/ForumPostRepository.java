@@ -16,6 +16,9 @@ public interface ForumPostRepository extends JpaRepository<ForumPostEntity, Long
 
     Page<ForumPostEntity> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
+    @Query("SELECT p FROM ForumPostEntity p WHERE p.createdAt >= :startOfDay ORDER BY p.createdAt DESC")
+    Page<ForumPostEntity> findTodayPosts(@Param("startOfDay") java.time.LocalDateTime startOfDay, Pageable pageable);
+
     Page<ForumPostEntity> findByCategoryIdOrderByCreatedAtDesc(Long categoryId, Pageable pageable);
 
     Page<ForumPostEntity> findByAuthorIdOrderByCreatedAtDesc(Long authorId, Pageable pageable);

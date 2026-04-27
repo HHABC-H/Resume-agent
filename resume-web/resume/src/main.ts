@@ -6,7 +6,7 @@ import App from './App.vue'
 import router from './router'
 
 // 配置 axios
-axios.defaults.baseURL = '/api'
+axios.defaults.baseURL = ''
 axios.defaults.timeout = 60000 // 设置 60 秒超时
 
 // 请求拦截器
