@@ -25,13 +25,19 @@ public interface ForumPostRepository extends JpaRepository<ForumPostEntity, Long
 
     Page<ForumPostEntity> findByStatusOrderByCreatedAtDesc(Integer status, Pageable pageable);
 
-    @Query("SELECT p FROM ForumPostEntity p WHERE p.status > 0 ORDER BY p.createdAt DESC")
+    @Query("SELECT p FROM ForumPostEntity p ORDER BY p.likeCount DESC, p.createdAt DESC")
     Page<ForumPostEntity> findEssences(Pageable pageable);
+
+    @Query("SELECT p FROM ForumPostEntity p WHERE p.createdAt >= :startTime ORDER BY p.likeCount DESC, p.createdAt DESC")
+    Page<ForumPostEntity> findEssencesSince(@Param("startTime") java.time.LocalDateTime startTime, Pageable pageable);
 
     Page<ForumPostEntity> findByOrderByViewCountDesc(Pageable pageable);
 
-    @Query(value = "SELECT author_id, COUNT(*) as post_count FROM forum_post GROUP BY author_id ORDER BY post_count DESC LIMIT :limit", nativeQuery = true)
+    @Query(value = "SELECT author_id, SUM(like_count) as total_likes FROM forum_post GROUP BY author_id ORDER BY total_likes DESC LIMIT :limit", nativeQuery = true)
     List<Object[]> findHotAuthors(@Param("limit") int limit);
+
+    @Query(value = "SELECT author_id, SUM(like_count) as total_likes FROM forum_post WHERE created_at >= :startTime GROUP BY author_id ORDER BY total_likes DESC LIMIT :limit", nativeQuery = true)
+    List<Object[]> findHotAuthorsSince(@Param("startTime") java.time.LocalDateTime startTime, @Param("limit") int limit);
 
     @Modifying
     @Query("UPDATE ForumPostEntity p SET p.viewCount = p.viewCount + 1 WHERE p.id = :id")
@@ -44,6 +50,14 @@ public interface ForumPostRepository extends JpaRepository<ForumPostEntity, Long
     @Modifying
     @Query("UPDATE ForumPostEntity p SET p.dislikeCount = p.dislikeCount + 1 WHERE p.id = :id")
     void incrementDislikeCount(@Param("id") Long id);
+
+    @Modifying
+    @Query("UPDATE ForumPostEntity p SET p.likeCount = p.likeCount - 1 WHERE p.id = :id AND p.likeCount > 0")
+    void decrementLikeCount(@Param("id") Long id);
+
+    @Modifying
+    @Query("UPDATE ForumPostEntity p SET p.dislikeCount = p.dislikeCount - 1 WHERE p.id = :id AND p.dislikeCount > 0")
+    void decrementDislikeCount(@Param("id") Long id);
 
     @Modifying
     @Query("UPDATE ForumPostEntity p SET p.commentCount = p.commentCount + 1 WHERE p.id = :id")

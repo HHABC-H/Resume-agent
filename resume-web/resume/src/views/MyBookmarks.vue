@@ -135,7 +135,7 @@ const loadBookmarks = async (page = 0) => {
   try {
     loading.value = true
     error.value = ''
-    const response = await axios.get(`/article/bookmark?page=${page}&size=20`, {
+    const response = await axios.get(`/api/forum/bookmarks?page=${page}&size=20`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (response.data.code === 200) {

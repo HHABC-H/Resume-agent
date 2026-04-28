@@ -5,6 +5,9 @@ import com.h.resumeagent.common.entity.*;
 import com.h.resumeagent.common.repository.*;
 import com.h.resumeagent.service.ForumService;
 import com.h.resumeagent.common.repository.UserRepository;
+import com.h.resumeagent.common.repository.ArticleBookmarkRepository;
+import com.h.resumeagent.common.repository.ForumPostLikeRepository;
+import com.h.resumeagent.common.repository.ForumPostBookmarkRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -24,6 +27,9 @@ public class ForumServiceImpl implements ForumService {
     private final ForumTagRepository tagRepository;
     private final ForumEssenceRepository essenceRepository;
     private final UserRepository userRepository;
+    private final ArticleBookmarkRepository bookmarkRepository;
+    private final ForumPostLikeRepository postLikeRepository;
+    private final ForumPostBookmarkRepository postBookmarkRepository;
 
     public ForumServiceImpl(
             ForumPostRepository postRepository,
@@ -31,13 +37,19 @@ public class ForumServiceImpl implements ForumService {
             ForumCategoryRepository categoryRepository,
             ForumTagRepository tagRepository,
             ForumEssenceRepository essenceRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            ArticleBookmarkRepository bookmarkRepository,
+            ForumPostLikeRepository postLikeRepository,
+            ForumPostBookmarkRepository postBookmarkRepository) {
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.categoryRepository = categoryRepository;
         this.tagRepository = tagRepository;
         this.essenceRepository = essenceRepository;
         this.userRepository = userRepository;
+        this.bookmarkRepository = bookmarkRepository;
+        this.postLikeRepository = postLikeRepository;
+        this.postBookmarkRepository = postBookmarkRepository;
     }
 
     @Override
@@ -66,11 +78,27 @@ public class ForumServiceImpl implements ForumService {
     }
 
     @Override
+    public Page<ForumPostDTO> getEssencesSince(LocalDateTime startTime, Pageable pageable) {
+        return postRepository.findEssencesSince(startTime, pageable)
+                .map(this::toPostDTO);
+    }
+
+    @Override
     public ForumPostDetailDTO getPostDetail(Long postId, Long userId) {
         ForumPostEntity post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Post not found"));
 
         List<ForumCommentDTO> comments = getComments(postId);
+
+        Boolean liked = false;
+        Boolean disliked = false;
+        if (userId != null) {
+            Optional<ForumPostLikeEntity> userLike = postLikeRepository.findByPostIdAndUserId(postId, userId);
+            if (userLike.isPresent()) {
+                liked = userLike.get().getStatus() == 1;
+                disliked = userLike.get().getStatus() == 2;
+            }
+        }
 
         return ForumPostDetailDTO.builder()
                 .id(post.getId())
@@ -89,6 +117,9 @@ public class ForumServiceImpl implements ForumService {
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .comments(comments)
+                .isBookmarked(userId != null && postBookmarkRepository.existsByPostIdAndUserId(postId, userId))
+                .liked(liked)
+                .disliked(disliked)
                 .build();
     }
 
@@ -164,13 +195,68 @@ public class ForumServiceImpl implements ForumService {
     }
 
     @Override
-    public void likePost(Long postId) {
-        postRepository.incrementLikeCount(postId);
+    public void likePost(Long postId, Long userId) {
+        Optional<ForumPostLikeEntity> existingLike = postLikeRepository.findByPostIdAndUserId(postId, userId);
+
+        if (existingLike.isPresent()) {
+            ForumPostLikeEntity like = existingLike.get();
+            if (like.getStatus() == 1) {
+                postLikeRepository.delete(like);
+                postRepository.decrementLikeCount(postId);
+            } else {
+                like.setStatus(1);
+                postLikeRepository.save(like);
+                postRepository.decrementDislikeCount(postId);
+                postRepository.incrementLikeCount(postId);
+            }
+        } else {
+            ForumPostLikeEntity newLike = ForumPostLikeEntity.builder()
+                    .postId(postId)
+                    .userId(userId)
+                    .status(1)
+                    .build();
+            postLikeRepository.save(newLike);
+            postRepository.incrementLikeCount(postId);
+        }
     }
 
     @Override
-    public void dislikePost(Long postId) {
-        postRepository.incrementDislikeCount(postId);
+    public void dislikePost(Long postId, Long userId) {
+        Optional<ForumPostLikeEntity> existingLike = postLikeRepository.findByPostIdAndUserId(postId, userId);
+
+        if (existingLike.isPresent()) {
+            ForumPostLikeEntity like = existingLike.get();
+            if (like.getStatus() == 2) {
+                postLikeRepository.delete(like);
+                postRepository.decrementDislikeCount(postId);
+            } else {
+                like.setStatus(2);
+                postLikeRepository.save(like);
+                postRepository.decrementLikeCount(postId);
+                postRepository.incrementDislikeCount(postId);
+            }
+        } else {
+            ForumPostLikeEntity newLike = ForumPostLikeEntity.builder()
+                    .postId(postId)
+                    .userId(userId)
+                    .status(2)
+                    .build();
+            postLikeRepository.save(newLike);
+            postRepository.incrementDislikeCount(postId);
+        }
+    }
+
+    @Override
+    public void unlikePost(Long postId, Long userId) {
+        Optional<ForumPostLikeEntity> existingLike = postLikeRepository.findByPostIdAndUserId(postId, userId);
+
+        if (existingLike.isPresent()) {
+            ForumPostLikeEntity like = existingLike.get();
+            if (like.getStatus() == 1) {
+                postLikeRepository.delete(like);
+                postRepository.decrementLikeCount(postId);
+            }
+        }
     }
 
     @Override
@@ -262,6 +348,29 @@ public class ForumServiceImpl implements ForumService {
         return authors;
     }
 
+    @Override
+    public List<HotAuthorDTO> getHotAuthorsSince(LocalDateTime startTime, int limit) {
+        List<Object[]> results = postRepository.findHotAuthorsSince(startTime, limit);
+        List<HotAuthorDTO> authors = new java.util.ArrayList<>();
+        for (Object[] row : results) {
+            Long authorId = ((Number) row[0]).longValue();
+            Integer totalLikes = ((Number) row[1]).intValue();
+            String username = userRepository.findById(authorId)
+                    .map(u -> u.getUsername())
+                    .orElse("Unknown");
+            String displayName = userRepository.findById(authorId)
+                    .map(u -> u.getDisplayName())
+                    .orElse(username);
+            authors.add(HotAuthorDTO.builder()
+                    .id(authorId)
+                    .username(username)
+                    .displayName(displayName)
+                    .postCount(totalLikes)
+                    .build());
+        }
+        return authors;
+    }
+
     private ForumPostDTO toPostDTO(ForumPostEntity post) {
         String contentPreview = post.getContent();
         if (contentPreview != null && contentPreview.length() > 100) {
@@ -309,5 +418,30 @@ public class ForumServiceImpl implements ForumService {
 
     private List<String> getPostTags(Long postId) {
         return Collections.emptyList();
+    }
+
+    @Override
+    public void toggleBookmark(Long postId, Long userId) {
+        Optional<ForumPostBookmarkEntity> existing = postBookmarkRepository.findByPostIdAndUserId(postId, userId);
+        if (existing.isPresent()) {
+            postBookmarkRepository.delete(existing.get());
+        } else {
+            ForumPostBookmarkEntity bookmark = ForumPostBookmarkEntity.builder()
+                    .postId(postId)
+                    .userId(userId)
+                    .build();
+            postBookmarkRepository.save(bookmark);
+        }
+    }
+
+    @Override
+    public Page<ForumPostDTO> getBookmarks(Long userId, Pageable pageable) {
+        return postBookmarkRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
+                .map(b -> postRepository.findById(b.getPostId()).map(this::toPostDTO).orElse(null));
+    }
+
+    @Override
+    public boolean isBookmarked(Long postId, Long userId) {
+        return postBookmarkRepository.existsByPostIdAndUserId(postId, userId);
     }
 }

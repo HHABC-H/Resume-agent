@@ -124,7 +124,7 @@ public class ArticleController {
         Long userId = currentUserId(request);
         if (userId == null) return false;
         return authService.authenticate(resolveToken(request))
-                .map(user -> "ROLE_ADMIN".equals(user.role()))
+                .map(user -> "ADMIN".equals(user.role()))
                 .orElse(false);
     }
 

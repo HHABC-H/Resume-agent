@@ -154,7 +154,7 @@ const loadCategories = async () => {
 const loadHotPosts = async () => {
   try {
     const response = await axios.get('/api/forum/hot?size=10')
-    hotPosts.value = response.data.content || []
+    hotPosts.value = response.data.data?.content || response.data?.content || response.data.content || []
   } catch (e) {
     console.error('加载热榜失败', e)
   }

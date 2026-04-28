@@ -332,7 +332,7 @@ public class AdminController {
 
     /**
      * 获取面试详情
-     */
+*/
     @GetMapping("/interview-history/{resumeId}")
     @Transactional(readOnly = true)
     public ResponseEntity<?> getInterviewDetail(@PathVariable String resumeId) {
@@ -355,6 +355,36 @@ public class AdminController {
                     detail.put("updatedAt", session.getUpdatedAt());
                     detail.put("questions", resumeData.getQuestions());
                     detail.put("evaluation", resumeData.getEvaluation());
+                    return ResponseEntity.ok(detail);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * 获取简历详情（管理员）
+     */
+    @GetMapping("/resume-history/{resumeId}")
+    @Transactional(readOnly = true)
+    public ResponseEntity<?> getResumeDetail(@PathVariable String resumeId) {
+        ResumeData resumeData = interviewService.getResumeById(resumeId);
+        if (resumeData == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return resumeSessionRepository.findByResumeId(resumeId)
+                .map(session -> {
+                    Map<String, Object> detail = new HashMap<>();
+                    detail.put("resumeId", session.getResumeId());
+                    detail.put("userId", session.getUserId());
+                    detail.put("status", session.getStatus());
+                    detail.put("positionType", session.getPositionType());
+                    detail.put("resumeOverallScore", session.getResumeOverallScore());
+                    detail.put("evaluationOverallScore", session.getEvaluationOverallScore());
+                    detail.put("questionCount", countInterviewQuestions(session));
+                    detail.put("createdAt", session.getCreatedAt());
+                    detail.put("updatedAt", session.getUpdatedAt());
+                    detail.put("resumeText", resumeData.getResumeText());
+                    detail.put("scoreResult", resumeData.getScoreResult());
                     return ResponseEntity.ok(detail);
                 })
                 .orElse(ResponseEntity.notFound().build());

@@ -106,6 +106,34 @@ CREATE TABLE `forum_essence` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='精华帖记录表';
 
 -- ----------------------------
+-- 7. 帖子点赞/点踩记录表
+-- 记录用户对帖子的点赞/点踩状态
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `forum_post_like` (
+  `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '记录ID',
+  `post_id` BIGINT NOT NULL COMMENT '帖子ID',
+  `user_id` BIGINT NOT NULL COMMENT '用户ID',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1点赞 2点踩',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+  UNIQUE KEY `uk_post_user` (`post_id`, `user_id`),
+  INDEX `idx_forum_post_like_user` (`user_id`),
+  INDEX `idx_forum_post_like_post` (`post_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='帖子点赞/点踩记录表';
+
+-- ----------------------------
+-- 8. 帖子收藏记录表
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `forum_post_bookmark` (
+  `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '记录ID',
+  `post_id` BIGINT NOT NULL COMMENT '帖子ID',
+  `user_id` BIGINT NOT NULL COMMENT '用户ID',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '收藏时间',
+  UNIQUE KEY `uk_forum_post_bookmark_user_post` (`user_id`, `post_id`),
+  INDEX `idx_forum_post_bookmark_user` (`user_id`),
+  INDEX `idx_forum_post_bookmark_post` (`post_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='帖子收藏记录表';
+
+-- ----------------------------
 -- 初始化数据：默认分类
 -- ----------------------------
 INSERT INTO `forum_category` (`name`, `description`, `sort_order`) VALUES

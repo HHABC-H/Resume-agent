@@ -155,7 +155,7 @@ onMounted(async () => {
 
 const loadAnalysis = async () => {
   try {
-    const response = await axios.get(`/resume/analysis/${resumeId.value}`, {
+    const response = await axios.get(`/api/resume/analysis/${resumeId.value}`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }

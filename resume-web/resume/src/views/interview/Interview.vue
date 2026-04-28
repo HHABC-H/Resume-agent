@@ -180,7 +180,7 @@ onMounted(() => {
 
 const generateQuestions = async (questionCount: number = 10) => {
   try {
-    const response = await axios.post(`/interview/${resumeId.value}/questions`, { questionCount }, {
+    const response = await axios.post(`/api/interview/${resumeId.value}/questions`, { questionCount }, {
       headers: { Authorization: `Bearer ${token}` }
     })
     questions.value = response.data
@@ -220,7 +220,7 @@ const generateFollowUp = async () => {
   error.value = ''
 
   try {
-    const response = await axios.post(`/interview/${resumeId.value}/follow-up`, {
+    const response = await axios.post(`/api/interview/${resumeId.value}/follow-up`, {
       questionIndex: currentQuestionIndex.value,
       answer: answers.value[currentQuestionIndex.value]
     }, {
@@ -264,7 +264,7 @@ const submitAnswers = async () => {
   error.value = ''
 
   try {
-    const response = await axios.post(`/interview/${resumeId.value}/submit`, {
+    const response = await axios.post(`/api/interview/${resumeId.value}/submit`, {
       answers: answers.value,
       followUpAnswers: followUpAnswers.value
     }, {

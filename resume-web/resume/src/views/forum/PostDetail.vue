@@ -22,8 +22,11 @@
       </div>
       <div class="content">{{ post.content }}</div>
       <div class="actions">
-        <button @click="likePost" :disabled="liked || post.liked" :class="{ active: liked || post.liked }">👍 赞 ({{ post.likeCount }})</button>
-        <button @click="dislikePost" :disabled="disliked || post.disliked" :class="{ active: disliked || post.disliked }">👎 踩 ({{ post.dislikeCount }})</button>
+        <button @click="likePost" :class="{ active: liked }">👍 赞 ({{ post.likeCount }})</button>
+        <button @click="dislikePost" :class="{ active: disliked }">👎 踩 ({{ post.dislikeCount }})</button>
+        <button @click="toggleBookmark" :class="{ bookmarked: bookmarked }">
+          {{ bookmarked ? '❤️ 已收藏' : '🤍 收藏' }}
+        </button>
       </div>
     </div>
 
@@ -89,6 +92,7 @@ const replyContent = ref('')
 const replyTo = ref(null)
 const liked = ref(false)
 const disliked = ref(false)
+const bookmarked = ref(false)
 
 const postId = route.params.id
 
@@ -98,6 +102,9 @@ const loadPost = async () => {
     const response = await axios.get(`/api/forum/post/${postId}/detail`)
     post.value = response.data.data
     comments.value = response.data.data.comments || []
+    liked.value = response.data.data.liked || false
+    disliked.value = response.data.data.disliked || false
+    bookmarked.value = response.data.data.isBookmarked || false
   } catch (e) {
     error.value = '加载失败: ' + (e.message || '未知错误')
   } finally {
@@ -106,34 +113,27 @@ const loadPost = async () => {
 }
 
 const likePost = async () => {
-  if (liked.value || post.value.liked) return
-  if (disliked.value || post.value.disliked) {
-    post.value.dislikeCount--
-    disliked.value = false
-    post.value.disliked = false
-  }
   try {
     await axios.post(`/api/forum/post/${postId}/like`)
-    liked.value = true
-    post.value.liked = true
-    post.value.likeCount++
+    await loadPost()
   } catch (e) {
     alert('操作失败')
   }
 }
 
 const dislikePost = async () => {
-  if (disliked.value || post.value.disliked) return
-  if (liked.value || post.value.liked) {
-    post.value.likeCount--
-    liked.value = false
-    post.value.liked = false
-  }
   try {
     await axios.post(`/api/forum/post/${postId}/dislike`)
-    disliked.value = true
-    post.value.disliked = true
-    post.value.dislikeCount++
+    await loadPost()
+  } catch (e) {
+    alert('操作失败')
+  }
+}
+
+const toggleBookmark = async () => {
+  try {
+    await axios.post(`/api/forum/post/${postId}/bookmark`)
+    await loadPost()
   } catch (e) {
     alert('操作失败')
   }
@@ -376,6 +376,16 @@ onMounted(() => {
 .actions button.active {
   color: #007bff;
   border-color: #007bff;
+}
+
+.actions button.bookmarked {
+  color: #fff;
+  background: #e74c3c;
+  border-color: #e74c3c;
+}
+
+.actions button.bookmarked:hover {
+  background: #c0392b;
 }
 
 .comments {

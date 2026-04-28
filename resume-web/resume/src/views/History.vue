@@ -1,21 +1,33 @@
 <template>
-  <div class="history-container">
+  <div class="forum-home">
     <header class="header">
-      <div class="logo">Resume Agent</div>
-      <div class="header-content">
-        <nav class="nav-menu">
-          <router-link to="/" class="nav-item">首页</router-link>
-          <router-link to="/resume/upload" class="nav-item">上传简历</router-link>
-          <router-link to="/history" class="nav-item">查看历史</router-link>
-          <router-link to="/profile" class="nav-item">个人资料</router-link>
-          <template v-if="isAdmin">
-            <router-link to="/admin" class="nav-item">管理后台</router-link>
+      <div class="logo" @click="router.push('/')">技术论坛</div>
+      <nav class="nav-menu">
+        <router-link to="/" class="nav-item">论坛</router-link>
+        <router-link to="/resume/upload" class="nav-item">简历助手</router-link>
+        <router-link to="/reading" class="nav-item">在线阅读</router-link>
+        <router-link :to="interviewLink" class="nav-item">面试助手</router-link>
+        <router-link to="/profile" class="nav-item">个人信息</router-link>
+        <router-link to="/history" class="nav-item active">查看历史</router-link>
+        <router-link to="/my-bookmarks" class="nav-item">我的收藏</router-link>
+        <router-link to="/forum/essences" class="nav-item">精华帖</router-link>
+        <router-link to="/forum/authors" class="nav-item">热门作者</router-link>
+      </nav>
+      <div class="header-right">
+        <router-link to="/forum/publish" class="btn-publish-header">+ 发布帖子</router-link>
+        <div class="user-section">
+          <template v-if="isLoggedIn">
+            <div class="user-info" @click="router.push('/profile')">
+              <span class="username">{{ username }}</span>
+              <div class="avatar">{{ username?.charAt(0).toUpperCase() }}</div>
+            </div>
+            <button @click="handleLogout" class="btn-logout">退出</button>
           </template>
-        </nav>
-        <nav class="user-nav">
-          <span class="user-info">{{ username }}</span>
-          <button @click="logout" class="btn btn-text">退出</button>
-        </nav>
+          <template v-else>
+            <router-link to="/login" class="btn-login">登录</router-link>
+            <router-link to="/register" class="btn-register">注册</router-link>
+          </template>
+        </div>
       </div>
     </header>
 
@@ -138,9 +150,21 @@ const router = useRouter()
 
 const token = localStorage.getItem('token')
 const username = localStorage.getItem('username')
-const role = localStorage.getItem('role')
 
-const isAdmin = computed(() => role === 'ADMIN')
+const isLoggedIn = computed(() => !!token)
+
+const interviewLink = computed(() => {
+  if (!token) return '/login'
+  return '/interview/1'
+})
+
+const handleLogout = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('username')
+  localStorage.removeItem('userId')
+  localStorage.removeItem('role')
+  router.push('/login')
+}
 
 const history = ref<any[]>([])
 const loading = ref(false)
@@ -169,7 +193,7 @@ const loadHistory = async () => {
     const response = await axios.get('/api/history/data', {
       headers: { Authorization: `Bearer ${token}` }
     })
-    history.value = response.data
+    history.value = response.data.data || response.data || []
   } catch (err: any) {
     error.value = err.response?.data?.error || '加载历史记录失败'
   } finally {
@@ -201,14 +225,6 @@ const formatDate = (dateStr: string) => {
   return date.toLocaleDateString('zh-CN')
 }
 
-const logout = () => {
-  localStorage.removeItem('token')
-  localStorage.removeItem('username')
-  localStorage.removeItem('userId')
-  localStorage.removeItem('role')
-  router.push('/')
-}
-
 onMounted(() => {
   if (!token) {
     router.push('/login')
@@ -219,72 +235,165 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.history-container {
+.forum-home {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  background: #f5f5f5;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
-  background-color: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 0.8rem 2rem;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .logo {
-  font-size: 1.25rem;
+  font-size: 1.4rem;
   font-weight: bold;
   color: #007bff;
-}
-
-.header-content {
-  display: flex;
-  align-items: center;
-  gap: 2rem;
+  cursor: pointer;
+  margin-right: 2rem;
 }
 
 .nav-menu {
+  display: flex;
+  gap: 0.3rem;
+  flex: 1;
+}
+
+.nav-item {
+  color: #666;
+  text-decoration: none;
+  padding: 0.5rem 0.9rem;
+  border-radius: 4px;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.nav-item:hover {
+  background: #f0f7ff;
+  color: #007bff;
+}
+
+.nav-item.active {
+  background: #007bff;
+  color: #fff;
+}
+
+.header-right {
   display: flex;
   align-items: center;
   gap: 1.5rem;
 }
 
-.nav-item {
-  color: #495057;
+.btn-publish-header {
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  color: #fff;
+  border-radius: 4px;
   text-decoration: none;
   font-weight: 500;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  transition: background-color 0.2s, color 0.2s;
+  font-size: 14px;
+  transition: all 0.2s;
 }
 
-.nav-item:hover {
-  background-color: #f8f9fa;
-  color: #007bff;
+.btn-publish-header:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,123,255,0.3);
 }
 
-.user-nav {
+.user-section {
   display: flex;
   align-items: center;
   gap: 1rem;
 }
 
 .user-info {
-  color: #495057;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.user-info:hover {
+  background: #f5f5f5;
+}
+
+.username {
   font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.btn-login, .btn-register {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.btn-login {
+  color: #007bff;
+}
+
+.btn-register {
+  background: #007bff;
+  color: #fff;
+}
+
+.btn-logout {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  background: #dc3545;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-logout:hover {
+  background: #c82333;
 }
 
 .main-content {
+  flex: 1;
   padding: 2rem;
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
+  width: 100%;
 }
 
 .main-content h1 {
   margin-bottom: 2rem;
   color: #333;
+  font-size: 24px;
 }
 
 .tabs {
@@ -294,13 +403,14 @@ onMounted(() => {
 }
 
 .tab-button {
-  padding: 0.75rem 1.5rem;
+  padding: 1rem 2rem;
   background: none;
   border: none;
   border-bottom: 3px solid transparent;
-  font-size: 1rem;
+  font-size: 15px;
   cursor: pointer;
   transition: all 0.2s;
+  color: #666;
 }
 
 .tab-button:hover {
@@ -319,18 +429,18 @@ onMounted(() => {
 
 .loading, .error-message, .empty-state {
   text-align: center;
-  padding: 3rem;
+  padding: 4rem;
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .empty-section {
   text-align: center;
-  padding: 2rem;
+  padding: 3rem;
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   color: #6c757d;
 }
 
@@ -347,17 +457,22 @@ onMounted(() => {
 .history-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
 .history-item {
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  transition: box-shadow 0.2s;
+}
+
+.history-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .history-info {
@@ -368,19 +483,20 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .position-type {
   font-weight: 600;
   color: #333;
+  font-size: 16px;
 }
 
 .status-badge {
   display: inline-block;
-  padding: 0.25rem 0.5rem;
+  padding: 0.25rem 0.75rem;
   border-radius: 4px;
-  font-size: 0.875rem;
+  font-size: 13px;
 }
 
 .status-badge.analyzed {
@@ -400,29 +516,31 @@ onMounted(() => {
 
 .history-scores {
   display: flex;
-  gap: 1.5rem;
-  margin: 0.5rem 0;
-  color: #6c757d;
-  font-size: 0.875rem;
+  gap: 2rem;
+  margin: 0.75rem 0;
+  color: #666;
+  font-size: 14px;
 }
 
 .history-date {
-  color: #6c757d;
-  font-size: 0.875rem;
+  color: #999;
+  font-size: 13px;
+  margin-top: 0.5rem;
 }
 
 .history-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 1rem;
 }
 
 .btn {
-  padding: 0.5rem 1rem;
+  padding: 0.6rem 1.2rem;
   border: none;
-  border-radius: 4px;
-  font-size: 0.875rem;
+  border-radius: 6px;
+  font-size: 14px;
   cursor: pointer;
   text-decoration: none;
+  transition: all 0.2s;
 }
 
 .btn-primary {
@@ -432,6 +550,7 @@ onMounted(() => {
 
 .btn-primary:hover {
   background-color: #0069d9;
+  transform: translateY(-1px);
 }
 
 .btn-secondary {

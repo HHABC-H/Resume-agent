@@ -119,6 +119,8 @@ const selectedFile = ref<File | null>(null)
 const positionType = ref('BACKEND_JAVA')
 const loading = ref(false)
 const error = ref('')
+const categories = ref([])
+const hotPosts = ref([])
 
 const loadCategories = async () => {
   try {
@@ -132,7 +134,7 @@ const loadCategories = async () => {
 const loadHotPosts = async () => {
   try {
     const response = await axios.get('/api/forum/hot?size=10')
-    hotPosts.value = response.data.content || []
+    hotPosts.value = response.data.data?.content || response.data?.content || response.data.content || []
   } catch (e) {
     console.error('加载热榜失败', e)
   }

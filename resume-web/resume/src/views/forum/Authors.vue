@@ -8,6 +8,8 @@
         <router-link to="/reading" class="nav-item">在线阅读</router-link>
         <router-link to="/interview/1" class="nav-item">面试助手</router-link>
         <router-link to="/profile" class="nav-item">个人信息</router-link>
+        <router-link to="/history" class="nav-item">查看历史</router-link>
+        <router-link to="/my-bookmarks" class="nav-item">我的收藏</router-link>
         <router-link to="/forum/essences" class="nav-item">精华帖</router-link>
         <router-link to="/forum/authors" class="nav-item active">热门作者</router-link>
       </nav>
@@ -35,6 +37,12 @@
           <div class="page-header">
             <button class="back-btn" @click="router.go(-1)">← 返回</button>
             <h1 class="page-title">热门作者</h1>
+            <div class="time-filter">
+              <button :class="{ active: timeFilter === 'all' }" @click="setTimeFilter('all')">全部</button>
+              <button :class="{ active: timeFilter === 'today' }" @click="setTimeFilter('today')">今天</button>
+              <button :class="{ active: timeFilter === 'week' }" @click="setTimeFilter('week')">本周</button>
+              <button :class="{ active: timeFilter === 'month' }" @click="setTimeFilter('month')">本月</button>
+            </div>
           </div>
 
           <div class="author-list-container">
@@ -53,7 +61,7 @@
                 <div class="author-avatar">{{ author.username?.charAt(0).toUpperCase() }}</div>
                 <div class="author-info">
                   <div class="author-name">{{ author.displayName || author.username }}</div>
-                  <div class="author-posts">{{ author.postCount }} 帖</div>
+                  <div class="author-posts">👍 {{ author.postCount }}</div>
                 </div>
               </div>
             </div>
@@ -104,6 +112,7 @@ const categories = ref([])
 const hotPosts = ref([])
 const loading = ref(true)
 const error = ref('')
+const timeFilter = ref('all')
 
 const token = localStorage.getItem('token')
 const username = localStorage.getItem('username')
@@ -118,10 +127,15 @@ const handleLogout = () => {
   router.push('/login')
 }
 
+const setTimeFilter = (filter) => {
+  timeFilter.value = filter
+  loadAuthors()
+}
+
 const loadAuthors = async () => {
   try {
     loading.value = true
-    const response = await axios.get('/api/forum/hot-authors?limit=50')
+    const response = await axios.get(`/api/forum/hot-authors?limit=50&time=${timeFilter.value}`)
     authors.value = response.data?.data || response.data || []
   } catch (e) {
     error.value = '加载失败'
@@ -365,6 +379,34 @@ onMounted(() => {
   font-size: 18px;
   font-weight: 600;
   color: #333;
+}
+
+.time-filter {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.time-filter button {
+  padding: 0.4rem 1rem;
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.time-filter button:hover {
+  border-color: #007bff;
+  color: #007bff;
+}
+
+.time-filter button.active {
+  background: #007bff;
+  border-color: #007bff;
+  color: #fff;
 }
 
 .author-list-container {

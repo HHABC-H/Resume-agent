@@ -8,6 +8,8 @@
         <router-link to="/reading" class="nav-item">在线阅读</router-link>
         <router-link to="/interview/1" class="nav-item">面试助手</router-link>
         <router-link to="/profile" class="nav-item">个人信息</router-link>
+        <router-link to="/history" class="nav-item">查看历史</router-link>
+        <router-link to="/my-bookmarks" class="nav-item">我的收藏</router-link>
         <router-link to="/forum/essences" class="nav-item active">精华帖</router-link>
         <router-link to="/forum/authors" class="nav-item">热门作者</router-link>
       </nav>
@@ -35,6 +37,12 @@
           <div class="page-header">
             <button class="back-btn" @click="router.go(-1)">← 返回</button>
             <h1 class="page-title">精华帖</h1>
+            <div class="time-filter">
+              <button :class="{ active: timeFilter === 'all' }" @click="setTimeFilter('all')">全部</button>
+              <button :class="{ active: timeFilter === 'today' }" @click="setTimeFilter('today')">今天</button>
+              <button :class="{ active: timeFilter === 'week' }" @click="setTimeFilter('week')">本周</button>
+              <button :class="{ active: timeFilter === 'month' }" @click="setTimeFilter('month')">本月</button>
+            </div>
           </div>
 
           <div class="essences-container">
@@ -113,6 +121,7 @@ const loading = ref(true)
 const error = ref('')
 const page = ref(0)
 const totalPages = ref(1)
+const timeFilter = ref('all')
 
 const token = localStorage.getItem('token')
 const username = localStorage.getItem('username')
@@ -127,11 +136,16 @@ const handleLogout = () => {
   router.push('/login')
 }
 
+const setTimeFilter = (filter) => {
+  timeFilter.value = filter
+  loadPosts(0)
+}
+
 const loadPosts = async (pageNum = 0) => {
   try {
     loading.value = true
     error.value = ''
-    const response = await axios.get(`/api/forum/essences?page=${pageNum}&size=20`)
+    const response = await axios.get(`/api/forum/essences/list?page=${pageNum}&size=20&time=${timeFilter.value}`)
     posts.value = response.data.data?.content || response.data?.content || []
     totalPages.value = response.data.data?.totalPages || response.data?.totalPages || 1
     page.value = pageNum
@@ -154,7 +168,7 @@ const loadCategories = async () => {
 const loadHotPosts = async () => {
   try {
     const response = await axios.get('/api/forum/hot?size=10')
-    hotPosts.value = response.data.content || []
+    hotPosts.value = response.data.data?.content || response.data?.content || response.data.content || []
   } catch (e) {
     console.error('加载热榜失败', e)
   }
@@ -383,6 +397,34 @@ onMounted(() => {
   font-size: 18px;
   font-weight: 600;
   color: #333;
+}
+
+.time-filter {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.time-filter button {
+  padding: 0.4rem 1rem;
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.time-filter button:hover {
+  border-color: #007bff;
+  color: #007bff;
+}
+
+.time-filter button.active {
+  background: #007bff;
+  border-color: #007bff;
+  color: #fff;
 }
 
 .essences-container {

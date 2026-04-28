@@ -210,10 +210,10 @@ const nextPage = () => {
 const viewDetail = async (resumeId: string) => {
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get(`/admin/interview-history/${resumeId}`, {
+    const response = await axios.get(`/api/admin/interview-history/${resumeId}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
-    detailData.value = response.data
+    detailData.value = response.data.data || response.data
     showDetail.value = true
   } catch (err: any) {
     alert('加载详情失败: ' + (err.response?.data?.error || '未知错误'))

@@ -11,6 +11,7 @@ public interface ForumService {
     Page<ForumPostDTO> getPostsByCategory(Long categoryId, Pageable pageable);
     Page<ForumPostDTO> getPostsByAuthor(Long authorId, Pageable pageable);
     Page<ForumPostDTO> getEssences(Pageable pageable);
+    Page<ForumPostDTO> getEssencesSince(java.time.LocalDateTime startTime, Pageable pageable);
     ForumPostDetailDTO getPostDetail(Long postId, Long userId);
     ForumPostDTO createPost(CreatePostRequest request, Long authorId);
     void deletePost(Long postId, Long userId);
@@ -19,9 +20,10 @@ public interface ForumService {
     ForumCommentDTO createComment(Long postId, Long parentId, String content, Long authorId);
     List<ForumCommentDTO> getComments(Long postId);
 
-    void likePost(Long postId);
-    void dislikePost(Long postId);
-void likeComment(Long commentId);
+    void likePost(Long postId, Long userId);
+    void dislikePost(Long postId, Long userId);
+    void unlikePost(Long postId, Long userId);
+    void likeComment(Long commentId);
 
     void dislikeComment(Long commentId);
 
@@ -36,4 +38,9 @@ void likeComment(Long commentId);
     List<ForumCategoryDTO> getCategories();
     Page<ForumPostDTO> getHotPosts(Pageable pageable);
     List<HotAuthorDTO> getHotAuthors(int limit);
+    List<HotAuthorDTO> getHotAuthorsSince(java.time.LocalDateTime startTime, int limit);
+
+    void toggleBookmark(Long postId, Long userId);
+    Page<ForumPostDTO> getBookmarks(Long userId, Pageable pageable);
+    boolean isBookmarked(Long postId, Long userId);
 }

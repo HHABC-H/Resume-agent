@@ -13,6 +13,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -93,16 +94,60 @@ public class ForumController {
 
     @PostMapping("/post/{id}/like")
     @ResponseBody
-    public ApiResponse<Void> likePost(@PathVariable Long id) {
-        forumService.likePost(id);
+    public ApiResponse<Void> likePost(@PathVariable Long id, HttpServletRequest request) {
+        Long userId = currentUserId(request);
+        if (userId == null) {
+            return ApiResponse.error(401, "未授权，请先登录");
+        }
+        forumService.likePost(id, userId);
         return ApiResponse.success("点赞成功", null);
     }
 
     @PostMapping("/post/{id}/dislike")
     @ResponseBody
-    public ApiResponse<Void> dislikePost(@PathVariable Long id) {
-        forumService.dislikePost(id);
+    public ApiResponse<Void> dislikePost(@PathVariable Long id, HttpServletRequest request) {
+        Long userId = currentUserId(request);
+        if (userId == null) {
+            return ApiResponse.error(401, "未授权，请先登录");
+        }
+        forumService.dislikePost(id, userId);
         return ApiResponse.success("点踩成功", null);
+    }
+
+    @DeleteMapping("/post/{id}/like")
+    @ResponseBody
+    public ApiResponse<Void> unlikePost(@PathVariable Long id, HttpServletRequest request) {
+        Long userId = currentUserId(request);
+        if (userId == null) {
+            return ApiResponse.error(401, "未授权，请先登录");
+        }
+        forumService.unlikePost(id, userId);
+        return ApiResponse.success("取消点赞成功", null);
+    }
+
+    @PostMapping("/post/{id}/bookmark")
+    @ResponseBody
+    public ApiResponse<Void> toggleBookmark(@PathVariable Long id, HttpServletRequest request) {
+        Long userId = currentUserId(request);
+        if (userId == null) {
+            return ApiResponse.error(401, "未授权，请先登录");
+        }
+        forumService.toggleBookmark(id, userId);
+        return ApiResponse.success("操作成功", null);
+    }
+
+    @GetMapping("/bookmarks")
+    @ResponseBody
+    public ApiResponse<Page<ForumPostDTO>> getBookmarks(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            HttpServletRequest request) {
+        Long userId = currentUserId(request);
+        if (userId == null) {
+            return ApiResponse.error(401, "未授权，请先登录");
+        }
+        Pageable pageable = PageRequest.of(page, size);
+        return ApiResponse.success(forumService.getBookmarks(userId, pageable));
     }
 
     @PostMapping("/comment")
@@ -166,10 +211,29 @@ public class ForumController {
         Pageable pageable = PageRequest.of(page, size);
         Page<ForumPostDTO> posts = forumService.getEssences(pageable);
         List<ForumCategoryDTO> categories = forumService.getCategories();
-        
+
         model.addAttribute("posts", posts);
         model.addAttribute("categories", categories);
         return "forum/essences";
+    }
+
+    @GetMapping("/essences/list")
+    @ResponseBody
+    public ApiResponse<Page<ForumPostDTO>> getEssencesList(@RequestParam(defaultValue = "0") int page,
+                                        @RequestParam(defaultValue = "20") int size,
+                                        @RequestParam(defaultValue = "all") String time) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<ForumPostDTO> posts;
+        if ("today".equals(time)) {
+            posts = forumService.getEssencesSince(LocalDateTime.now().toLocalDate().atStartOfDay(), pageable);
+        } else if ("week".equals(time)) {
+            posts = forumService.getEssencesSince(LocalDateTime.now().minusWeeks(1).with(java.time.DayOfWeek.MONDAY).toLocalDate().atStartOfDay(), pageable);
+        } else if ("month".equals(time)) {
+            posts = forumService.getEssencesSince(LocalDateTime.now().withDayOfMonth(1).toLocalDate().atStartOfDay(), pageable);
+        } else {
+            posts = forumService.getEssences(pageable);
+        }
+        return ApiResponse.success(posts);
     }
 
     @GetMapping("/categories")
@@ -187,8 +251,19 @@ public class ForumController {
 
     @GetMapping("/hot-authors")
     @ResponseBody
-    public ApiResponse<List<HotAuthorDTO>> getHotAuthors(@RequestParam(defaultValue = "10") int limit) {
-        return ApiResponse.success(forumService.getHotAuthors(limit));
+    public ApiResponse<List<HotAuthorDTO>> getHotAuthors(@RequestParam(defaultValue = "10") int limit,
+                                        @RequestParam(defaultValue = "all") String time) {
+        List<HotAuthorDTO> authors;
+        if ("today".equals(time)) {
+            authors = forumService.getHotAuthorsSince(LocalDateTime.now().toLocalDate().atStartOfDay(), limit);
+        } else if ("week".equals(time)) {
+            authors = forumService.getHotAuthorsSince(LocalDateTime.now().minusWeeks(1).with(java.time.DayOfWeek.MONDAY).toLocalDate().atStartOfDay(), limit);
+        } else if ("month".equals(time)) {
+            authors = forumService.getHotAuthorsSince(LocalDateTime.now().withDayOfMonth(1).toLocalDate().atStartOfDay(), limit);
+        } else {
+            authors = forumService.getHotAuthors(limit);
+        }
+        return ApiResponse.success(authors);
     }
 
     @GetMapping("/author/{id}/posts")
@@ -260,7 +335,7 @@ public class ForumController {
         Long userId = currentUserId(request);
         if (userId == null) return false;
         return authService.authenticate(resolveToken(request))
-                .map(user -> "ROLE_ADMIN".equals(user.role()))
+                .map(user -> "ADMIN".equals(user.role()))
                 .orElse(false);
     }
 

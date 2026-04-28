@@ -24,4 +24,7 @@ public class ForumPostDetailDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<ForumCommentDTO> comments;
+    private Boolean isBookmarked;
+    private Boolean liked;
+    private Boolean disliked;
 }

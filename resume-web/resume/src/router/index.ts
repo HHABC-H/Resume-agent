@@ -163,6 +163,7 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach((to, from) => {
+  // 每次路由切换时直接从 localStorage 读取最新值
   const token = localStorage.getItem('token')
   const role = localStorage.getItem('role')
 
@@ -193,13 +194,9 @@ router.beforeEach((to, from) => {
     if (role === 'ADMIN') {
       return true
     } else {
+      console.warn('非管理员尝试访问管理路由:', to.path, '当前角色:', role)
       return '/'
     }
-  }
-
-  // 普通用户路由检查
-  if (role === 'ADMIN') {
-    return '/admin'
   }
 
   return true
