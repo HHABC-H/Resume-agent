@@ -23,12 +23,14 @@ public interface ForumPostRepository extends JpaRepository<ForumPostEntity, Long
 
     Page<ForumPostEntity> findByAuthorIdOrderByCreatedAtDesc(Long authorId, Pageable pageable);
 
-    Page<ForumPostEntity> findByStatusOrderByCreatedAtDesc(Integer status, Pageable pageable);
+    Page<ForumPostEntity> findByIsEssenceOrderByCreatedAtDesc(Boolean isEssence, Pageable pageable);
 
-    @Query("SELECT p FROM ForumPostEntity p ORDER BY p.likeCount DESC, p.createdAt DESC")
+    Page<ForumPostEntity> findByIsTopOrderByCreatedAtDesc(Boolean isTop, Pageable pageable);
+
+    @Query("SELECT p FROM ForumPostEntity p WHERE p.isEssence = true ORDER BY p.createdAt DESC")
     Page<ForumPostEntity> findEssences(Pageable pageable);
 
-    @Query("SELECT p FROM ForumPostEntity p WHERE p.createdAt >= :startTime ORDER BY p.likeCount DESC, p.createdAt DESC")
+    @Query("SELECT p FROM ForumPostEntity p WHERE p.isEssence = true AND p.createdAt >= :startTime ORDER BY p.createdAt DESC")
     Page<ForumPostEntity> findEssencesSince(@Param("startTime") java.time.LocalDateTime startTime, Pageable pageable);
 
     Page<ForumPostEntity> findByOrderByViewCountDesc(Pageable pageable);
@@ -64,6 +66,35 @@ public interface ForumPostRepository extends JpaRepository<ForumPostEntity, Long
     void incrementCommentCount(@Param("id") Long id);
 
     @Modifying
-    @Query("UPDATE ForumPostEntity p SET p.status = :status WHERE p.id = :id")
-    void updateStatus(@Param("id") Long id, @Param("status") Integer status);
+    @Query("UPDATE ForumPostEntity p SET p.isEssence = :isEssence WHERE p.id = :id")
+    void updateEssence(@Param("id") Long id, @Param("isEssence") Boolean isEssence);
+
+    @Modifying
+    @Query("UPDATE ForumPostEntity p SET p.isTop = :isTop WHERE p.id = :id")
+    void updateTop(@Param("id") Long id, @Param("isTop") Boolean isTop);
+
+    long countByIsEssence(Boolean isEssence);
+
+    long countByIsTop(Boolean isTop);
+
+    Page<ForumPostEntity> findByTitleContainingIgnoreCase(String keyword, Pageable pageable);
+
+    Page<ForumPostEntity> findByIsEssenceAndTitleContainingIgnoreCase(Boolean isEssence, String keyword, Pageable pageable);
+
+    List<ForumPostEntity> findByAuthorId(Long authorId);
+
+    @Query(value = "SELECT DISTINCT author_id FROM forum_post WHERE is_essence = true", nativeQuery = true)
+    List<Long> findDistinctEssenceAuthors();
+
+    @Query(value = "SELECT COALESCE(SUM(view_count), 0) FROM forum_post WHERE is_essence = true", nativeQuery = true)
+    long sumViewsByEssence();
+
+    @Query(value = "SELECT COALESCE(SUM(like_count), 0) FROM forum_post WHERE is_essence = true", nativeQuery = true)
+    long sumLikesByEssence();
+
+    @Query(value = "SELECT COALESCE(SUM(like_count), 0) FROM forum_post", nativeQuery = true)
+    long sumLikes();
+
+    @Query(value = "SELECT author_id, COUNT(*), COALESCE(SUM(like_count), 0) FROM forum_post GROUP BY author_id ORDER BY SUM(like_count) DESC LIMIT :limit", nativeQuery = true)
+    List<Object[]> findHotAuthorsWithStats(@Param("limit") int limit);
 }

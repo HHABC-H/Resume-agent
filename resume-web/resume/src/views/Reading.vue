@@ -5,8 +5,10 @@
       <nav class="nav-menu">
         <router-link to="/" class="nav-item">论坛</router-link>
         <router-link to="/resume/upload" class="nav-item">简历助手</router-link>
+        <router-link to="/resume/edit" class="nav-item">编辑简历</router-link>
+        <router-link to="/my-resumes" class="nav-item">我的简历</router-link>
         <router-link to="/reading" class="nav-item active">在线阅读</router-link>
-        <router-link to="/interview/1" class="nav-item">面试助手</router-link>
+        <router-link :to="interviewLink" class="nav-item">面试助手</router-link>
         <router-link to="/profile" class="nav-item">个人信息</router-link>
         <router-link to="/history" class="nav-item">查看历史</router-link>
         <router-link to="/my-bookmarks" class="nav-item">我的收藏</router-link>
@@ -94,6 +96,11 @@ const token = localStorage.getItem('token')
 const username = localStorage.getItem('username')
 
 const isLoggedIn = computed(() => !!token)
+
+const interviewLink = computed(() => {
+  if (!token) return '/login'
+  return '/interview/1'
+})
 
 const handleLogout = () => {
   localStorage.removeItem('token')

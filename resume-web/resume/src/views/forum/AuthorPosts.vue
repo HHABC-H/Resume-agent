@@ -47,8 +47,8 @@
               <div v-for="post in posts" :key="post.id" class="post-item" @click="router.push(`/forum/post/${post.id}`)">
                 <div class="post-left">
                   <div class="post-title">
-                    <span v-if="post.status === 1" class="badge essence">精华</span>
-                    <span v-if="post.status === 2" class="badge top">置顶</span>
+                    <span v-if="post.isEssence" class="badge essence">精华</span>
+                    <span v-if="post.isTop" class="badge top">置顶</span>
                     <span class="category-tag" v-if="post.categoryName">{{ post.categoryName }}</span>
                     <span class="title-text">{{ post.title }}</span>
                   </div>

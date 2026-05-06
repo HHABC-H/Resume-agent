@@ -18,13 +18,25 @@
           <i class="nav-icon">👥</i>
           <span>用户管理</span>
         </router-link>
+        <router-link to="/admin/posts" class="nav-item">
+          <i class="nav-icon">📋</i>
+          <span>帖子管理</span>
+        </router-link>
+        <router-link to="/admin/top-posts" class="nav-item">
+          <i class="nav-icon">📌</i>
+          <span>置顶管理</span>
+        </router-link>
         <router-link to="/admin/resume-history" class="nav-item">
           <i class="nav-icon">📄</i>
-          <span>简历管理</span>
+          <span>简历分析</span>
         </router-link>
         <router-link to="/admin/interview-history" class="nav-item">
           <i class="nav-icon">🎯</i>
-          <span>面试管理</span>
+          <span>面试分析</span>
+        </router-link>
+        <router-link to="/admin/resumes" class="nav-item">
+          <i class="nav-icon">📋</i>
+          <span>简历管理</span>
         </router-link>
         <router-link to="/admin/permissions" class="nav-item">
           <i class="nav-icon">🔐</i>
@@ -33,6 +45,14 @@
         <router-link to="/admin/article-manage" class="nav-item">
           <i class="nav-icon">📝</i>
           <span>文章管理</span>
+        </router-link>
+        <router-link to="/admin/essence-management" class="nav-item">
+          <i class="nav-icon">⭐</i>
+          <span>精华帖管理</span>
+        </router-link>
+        <router-link to="/admin/author-management" class="nav-item">
+          <i class="nav-icon">👑</i>
+          <span>热门作者管理</span>
         </router-link>
       </nav>
       
@@ -86,12 +106,17 @@ const pageTitle = computed(() => {
   const titles: Record<string, string> = {
     '/admin/dashboard': '仪表盘',
     '/admin/users': '用户管理',
-    '/admin/resume-history': '简历管理',
-    '/admin/interview-history': '面试管理',
+    '/admin/posts': '帖子管理',
+    '/admin/top-posts': '置顶管理',
+    '/admin/resume-history': '简历分析',
+    '/admin/interview-history': '面试分析',
+    '/admin/resumes': '简历管理',
     '/admin/system-config': '系统配置',
     '/admin/permissions': '权限管理',
     '/admin/article-manage': '文章管理',
-    '/admin/article-edit': '文章编辑'
+    '/admin/article-edit': '文章编辑',
+    '/admin/essence-management': '精华帖管理',
+    '/admin/author-management': '热门作者管理'
   }
   return titles[path] || '管理后台'
 })

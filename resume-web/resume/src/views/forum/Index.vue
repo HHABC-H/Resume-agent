@@ -18,8 +18,8 @@
           <div v-else>
             <div v-for="post in posts" :key="post.id" class="post-item">
               <h2>
-                <span v-if="post.status === 1" class="badge essence">精华</span>
-                <span v-if="post.status === 2" class="badge top">置顶</span>
+                <span v-if="post.isEssence" class="badge essence">精华</span>
+                <span v-if="post.isTop" class="badge top">置顶</span>
                 <router-link :to="`/forum/post/${post.id}`">{{ post.title }}</router-link>
               </h2>
               <div class="meta">

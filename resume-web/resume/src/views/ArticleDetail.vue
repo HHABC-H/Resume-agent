@@ -5,14 +5,21 @@
       <nav class="nav-menu">
         <router-link to="/" class="nav-item">论坛</router-link>
         <router-link to="/resume/upload" class="nav-item">简历助手</router-link>
+        <router-link to="/resume/edit" class="nav-item">编辑简历</router-link>
         <router-link to="/my-resumes" class="nav-item">我的简历</router-link>
         <router-link to="/reading" class="nav-item active">在线阅读</router-link>
+        <router-link :to="interviewLink" class="nav-item">面试助手</router-link>
+        <router-link to="/profile" class="nav-item">个人信息</router-link>
+        <router-link to="/history" class="nav-item">查看历史</router-link>
+        <router-link to="/my-bookmarks" class="nav-item">我的收藏</router-link>
+        <router-link to="/forum/essences" class="nav-item">精华帖</router-link>
+        <router-link to="/forum/authors" class="nav-item">热门作者</router-link>
       </nav>
       <div class="header-right">
         <button @click="handleToggleBookmark" :class="['btn-bookmark', { active: isBookmarked }]">
           {{ isBookmarked ? '已收藏' : '收藏' }}
         </button>
-        <button @click="router.push('/reading')" class="btn-back">返回列表</button>
+        <button @click="router.go(-1)" class="btn-back">返回</button>
       </div>
     </header>
 
@@ -45,16 +52,24 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { articleApi } from '../api/article'
 
 const router = useRouter()
 const route = useRoute()
 
+const token = localStorage.getItem('token')
+const username = localStorage.getItem('username')
+
+const interviewLink = computed(() => {
+  if (!token) return '/login'
+  return '/interview/1'
+})
+
 const article = ref(null)
 const isBookmarked = ref(false)
-const isLoggedIn = ref(!!localStorage.getItem('token'))
+const isLoggedIn = ref(!!token)
 
 const loadArticle = async () => {
   try {

@@ -19,7 +19,8 @@ public class ForumPostDTO {
     private Integer likeCount;
     private Integer dislikeCount;
     private Integer commentCount;
-    private Integer status;
+    private Boolean isEssence;
+    private Boolean isTop;
     private List<String> tags;
     private LocalDateTime createdAt;
 }

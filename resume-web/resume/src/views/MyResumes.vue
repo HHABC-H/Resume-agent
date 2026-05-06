@@ -5,8 +5,15 @@
       <nav class="nav-menu">
         <router-link to="/" class="nav-item">论坛</router-link>
         <router-link to="/resume/upload" class="nav-item">简历助手</router-link>
-        <router-link to="/resume/edit" class="nav-item active">我的简历</router-link>
+        <router-link to="/resume/edit" class="nav-item">编辑简历</router-link>
+        <router-link to="/my-resumes" class="nav-item active">我的简历</router-link>
         <router-link to="/reading" class="nav-item">在线阅读</router-link>
+        <router-link :to="interviewLink" class="nav-item">面试助手</router-link>
+        <router-link to="/profile" class="nav-item">个人信息</router-link>
+        <router-link to="/history" class="nav-item">查看历史</router-link>
+        <router-link to="/my-bookmarks" class="nav-item">我的收藏</router-link>
+        <router-link to="/forum/essences" class="nav-item">精华帖</router-link>
+        <router-link to="/forum/authors" class="nav-item">热门作者</router-link>
       </nav>
       <div class="header-right">
         <button @click="router.push('/resume/edit')" class="btn-primary">新建简历</button>
@@ -52,11 +59,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { resumeEditApi } from '../api/resumeEdit'
 
 const router = useRouter()
+
+const token = localStorage.getItem('token')
+
+const interviewLink = computed(() => {
+  if (!token) return '/login'
+  return '/interview/1'
+})
 
 const resumes = ref([])
 const loading = ref(false)

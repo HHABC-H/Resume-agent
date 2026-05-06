@@ -9,8 +9,8 @@
     <div v-else-if="error" class="error">{{ error }}</div>
     <div v-else-if="post" class="post">
       <h1>
-        <span v-if="post.status === 1" class="badge essence">精华</span>
-        <span v-if="post.status === 2" class="badge top">置顶</span>
+        <span v-if="post.isEssence" class="badge essence">精华</span>
+        <span v-if="post.isTop" class="badge top">置顶</span>
         {{ post.title }}
       </h1>
       <div class="meta">

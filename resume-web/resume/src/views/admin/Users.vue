@@ -83,7 +83,7 @@
         <h3>编辑用户</h3>
         <form @submit.prevent="saveUser">
           <div class="form-group">
-            <label>用户名</label>
+            <label>账号</label>
             <input type="text" v-model="editForm.username" disabled class="form-control">
           </div>
           <div class="form-group">
@@ -93,6 +93,10 @@
           <div class="form-group">
             <label>显示名称</label>
             <input type="text" v-model="editForm.displayName" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>新密码（不填则保持不变）</label>
+            <input type="password" v-model="editForm.password" class="form-control" placeholder="请输入新密码">
           </div>
           <div class="form-actions">
             <button type="button" @click="closeEditModal" class="btn btn-secondary">取消</button>
@@ -118,7 +122,8 @@ const editForm = ref({
   id: null as number | null,
   username: '',
   email: '',
-  displayName: ''
+  displayName: '',
+  password: ''
 })
 
 const filteredUsers = computed(() => {
@@ -152,7 +157,8 @@ const editUser = (user: any) => {
     id: user.id,
     username: user.username,
     email: user.email || '',
-    displayName: user.displayName || ''
+    displayName: user.displayName || '',
+    password: ''
   }
   showEditModal.value = true
 }
@@ -163,21 +169,31 @@ const closeEditModal = () => {
     id: null,
     username: '',
     email: '',
-    displayName: ''
+    displayName: '',
+    password: ''
   }
 }
 
 const saveUser = async () => {
   if (!editForm.value.id) return
-  
+
   try {
     const token = localStorage.getItem('token')
-    await axios.put(`/admin/users/${editForm.value.id}`, {
+    await axios.put(`/api/admin/users/${editForm.value.id}`, {
       email: editForm.value.email,
       displayName: editForm.value.displayName
     }, {
       headers: { Authorization: `Bearer ${token}` }
     })
+
+    if (editForm.value.password) {
+      await axios.put(`/api/admin/users/${editForm.value.id}/password`, {
+        password: editForm.value.password
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+    }
+
     closeEditModal()
     loadUsers()
   } catch (err: any) {
@@ -188,7 +204,7 @@ const saveUser = async () => {
 const toggleUserStatus = async (userId: number, status: number) => {
   try {
     const token = localStorage.getItem('token')
-    await axios.put(`/admin/users/${userId}/status`, { status }, {
+    await axios.put(`/api/admin/users/${userId}/status`, { status }, {
       headers: { Authorization: `Bearer ${token}` }
     })
     loadUsers()

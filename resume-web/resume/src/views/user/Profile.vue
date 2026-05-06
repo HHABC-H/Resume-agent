@@ -44,7 +44,7 @@
             <div v-else-if="error" class="error-message">{{ error }}</div>
             <form v-else @submit.prevent="saveProfile" class="profile-form">
               <div class="form-group">
-                <label>用户名</label>
+                <label>账号</label>
                 <input type="text" v-model="profile.username" disabled>
               </div>
               <div class="form-group">
@@ -54,6 +54,10 @@
               <div class="form-group">
                 <label>显示名称</label>
                 <input type="text" v-model="profile.displayName">
+              </div>
+              <div class="form-group">
+                <label>新密码（不填则保持不变）</label>
+                <input type="password" v-model="profile.password" placeholder="请输入新密码">
               </div>
               <div class="form-group">
                 <label>注册时间</label>
@@ -134,6 +138,7 @@ const profile = ref({
   username: '',
   email: '',
   displayName: '',
+  password: '',
   createdAt: ''
 })
 
@@ -191,6 +196,16 @@ const saveProfile = async () => {
     }, {
       headers: { Authorization: `Bearer ${token}` }
     })
+
+    if (profile.value.password) {
+      await axios.put(`/user/password`, {
+        password: profile.value.password
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      profile.value.password = ''
+    }
+
     successMessage.value = '个人资料保存成功！'
     if (profile.value.displayName) {
       localStorage.setItem('username', profile.value.displayName)

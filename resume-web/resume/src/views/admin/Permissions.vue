@@ -113,7 +113,7 @@ const assignRole = async () => {
   
   try {
     const token = localStorage.getItem('token')
-    await axios.put(`/admin/users/${selectedUserId.value}/role`, {
+    await axios.put(`/api/admin/users/${selectedUserId.value}/role`, {
       role: selectedRole.value
     }, {
       headers: { Authorization: `Bearer ${token}` }

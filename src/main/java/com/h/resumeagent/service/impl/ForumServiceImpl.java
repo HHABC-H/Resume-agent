@@ -54,8 +54,8 @@ public class ForumServiceImpl implements ForumService {
 
     @Override
     public Page<ForumPostDTO> getPosts(Pageable pageable) {
-        LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
-        return postRepository.findTodayPosts(startOfDay, pageable)
+        LocalDateTime threeDaysAgo = LocalDateTime.now().minusDays(3);
+        return postRepository.findTodayPosts(threeDaysAgo, pageable)
                 .map(this::toPostDTO);
     }
 
@@ -112,7 +112,8 @@ public class ForumServiceImpl implements ForumService {
                 .likeCount(post.getLikeCount())
                 .dislikeCount(post.getDislikeCount())
                 .commentCount(post.getCommentCount())
-                .status(post.getStatus())
+                .isEssence(post.getIsEssence())
+                .isTop(post.getIsTop())
                 .tags(getPostTags(post.getId()))
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
@@ -288,23 +289,23 @@ public class ForumServiceImpl implements ForumService {
                     .build();
             essenceRepository.save(essence);
         }
-        postRepository.updateStatus(postId, 1);
+        postRepository.updateEssence(postId, true);
     }
 
     @Override
     public void removeEssence(Long postId) {
         essenceRepository.findByPostId(postId).ifPresent(essenceRepository::delete);
-        postRepository.updateStatus(postId, 0);
+        postRepository.updateEssence(postId, false);
     }
 
     @Override
     public void setTop(Long postId, Long operatorId) {
-        postRepository.updateStatus(postId, 2);
+        postRepository.updateTop(postId, true);
     }
 
     @Override
     public void removeTop(Long postId) {
-        postRepository.updateStatus(postId, 0);
+        postRepository.updateTop(postId, false);
     }
 
     @Override
@@ -322,6 +323,12 @@ public class ForumServiceImpl implements ForumService {
     @Override
     public Page<ForumPostDTO> getHotPosts(Pageable pageable) {
         return postRepository.findByOrderByViewCountDesc(pageable)
+                .map(this::toPostDTO);
+    }
+
+    @Override
+    public Page<ForumPostDTO> getTopPosts(Pageable pageable) {
+        return postRepository.findByIsTopOrderByCreatedAtDesc(true, pageable)
                 .map(this::toPostDTO);
     }
 
@@ -389,7 +396,8 @@ public class ForumServiceImpl implements ForumService {
                 .likeCount(post.getLikeCount())
                 .dislikeCount(post.getDislikeCount())
                 .commentCount(post.getCommentCount())
-                .status(post.getStatus())
+                .isEssence(post.getIsEssence())
+                .isTop(post.getIsTop())
                 .tags(getPostTags(post.getId()))
                 .createdAt(post.getCreatedAt())
                 .build();

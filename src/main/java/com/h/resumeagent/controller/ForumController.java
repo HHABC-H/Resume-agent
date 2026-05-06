@@ -249,6 +249,13 @@ public class ForumController {
         return ApiResponse.success(forumService.getHotPosts(PageRequest.of(page, size)));
     }
 
+    @GetMapping("/top")
+    @ResponseBody
+    public ApiResponse<Page<ForumPostDTO>> getTopPosts(@RequestParam(defaultValue = "0") int page,
+                                        @RequestParam(defaultValue = "20") int size) {
+        return ApiResponse.success(forumService.getTopPosts(PageRequest.of(page, size)));
+    }
+
     @GetMapping("/hot-authors")
     @ResponseBody
     public ApiResponse<List<HotAuthorDTO>> getHotAuthors(@RequestParam(defaultValue = "10") int limit,

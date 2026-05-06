@@ -15,7 +15,8 @@ import java.util.List;
 @Table(name = "forum_post", indexes = {
     @Index(name = "idx_forum_post_author", columnList = "author_id"),
     @Index(name = "idx_forum_post_category", columnList = "category_id"),
-    @Index(name = "idx_forum_post_status", columnList = "status")
+    @Index(name = "idx_forum_post_is_essence", columnList = "is_essence"),
+    @Index(name = "idx_forum_post_is_top", columnList = "is_top")
 })
 public class ForumPostEntity {
     @Id
@@ -50,9 +51,13 @@ public class ForumPostEntity {
     @Builder.Default
     private Integer commentCount = 0;
 
-    @Column(name = "status", nullable = false)
+    @Column(name = "is_essence", nullable = false)
     @Builder.Default
-    private Integer status = 0;
+    private Boolean isEssence = false;
+
+    @Column(name = "is_top", nullable = false)
+    @Builder.Default
+    private Boolean isTop = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -76,7 +81,8 @@ public class ForumPostEntity {
         if (likeCount == null) likeCount = 0;
         if (dislikeCount == null) dislikeCount = 0;
         if (commentCount == null) commentCount = 0;
-        if (status == null) status = 0;
+        if (isEssence == null) isEssence = false;
+        if (isTop == null) isTop = false;
     }
 
     @PreUpdate

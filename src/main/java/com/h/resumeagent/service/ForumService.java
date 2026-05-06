@@ -37,6 +37,8 @@ public interface ForumService {
 
     List<ForumCategoryDTO> getCategories();
     Page<ForumPostDTO> getHotPosts(Pageable pageable);
+
+    Page<ForumPostDTO> getTopPosts(Pageable pageable);
     List<HotAuthorDTO> getHotAuthors(int limit);
     List<HotAuthorDTO> getHotAuthorsSince(java.time.LocalDateTime startTime, int limit);
 

@@ -52,6 +52,11 @@ const routes = [
     component: () => import('../views/ResumeEdit.vue')
   },
   {
+    path: '/resume/edit/:id',
+    name: 'resumeEditWithId',
+    component: () => import('../views/ResumeEdit.vue')
+  },
+  {
     path: '/my-resumes',
     name: 'myResumes',
     component: () => import('../views/MyResumes.vue')
@@ -118,6 +123,16 @@ const routes = [
         component: () => import('../views/admin/Dashboard.vue')
       },
       {
+        path: 'posts',
+        name: 'adminPosts',
+        component: () => import('../views/admin/PostManagement.vue')
+      },
+      {
+        path: 'top-posts',
+        name: 'adminTopPosts',
+        component: () => import('../views/admin/TopPostManagement.vue')
+      },
+      {
         path: 'users',
         name: 'adminUsers',
         component: () => import('../views/admin/Users.vue')
@@ -146,6 +161,21 @@ const routes = [
         path: 'article-edit/:id?',
         name: 'adminArticleEdit',
         component: () => import('../views/admin/ArticleEdit.vue')
+      },
+      {
+        path: 'essence-management',
+        name: 'adminEssenceManagement',
+        component: () => import('../views/admin/EssenceManagement.vue')
+      },
+      {
+        path: 'author-management',
+        name: 'adminAuthorManagement',
+        component: () => import('../views/admin/AuthorManagement.vue')
+      },
+      {
+        path: 'resumes',
+        name: 'adminResumes',
+        component: () => import('../views/admin/ResumeManagement.vue')
       },
       {
         path: '',

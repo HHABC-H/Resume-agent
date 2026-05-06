@@ -1,7 +1,7 @@
 <template>
   <div class="resume-management">
     <div class="page-header">
-      <h2>简历管理</h2>
+      <h2>简历分析</h2>
       <p>查看和管理所有用户的简历分析历史</p>
     </div>
     

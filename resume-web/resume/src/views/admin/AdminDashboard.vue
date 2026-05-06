@@ -4,8 +4,8 @@
       <div class="logo">Resume Agent - 管理后台</div>
       <nav class="nav">
         <router-link to="/admin" class="nav-link">用户管理</router-link>
-        <router-link to="/admin/resume-history" class="nav-link">简历管理</router-link>
-        <router-link to="/admin/interview-history" class="nav-link">面试管理</router-link>
+        <router-link to="/admin/resume-history" class="nav-link">简历分析</router-link>
+        <router-link to="/admin/interview-history" class="nav-link">面试分析</router-link>
         <router-link to="/admin/system-config" class="nav-link">系统配置</router-link>
         <router-link to="/admin/permissions" class="nav-link">权限管理</router-link>
         <span class="user-info">{{ username }}</span>
@@ -79,7 +79,7 @@
       <!-- 简历管理 -->
       <div v-else-if="currentPath === '/admin/resume-history'">
         <div class="page-header">
-          <h1>简历管理</h1>
+          <h1>简历分析</h1>
         </div>
         <div class="card">
           <div class="card-header">
@@ -124,7 +124,7 @@
       <!-- 面试管理 -->
       <div v-else-if="currentPath === '/admin/interview-history'">
         <div class="page-header">
-          <h1>面试管理</h1>
+          <h1>面试分析</h1>
         </div>
         <div class="card">
           <div class="card-header">
@@ -447,7 +447,7 @@ const saveUser = async () => {
   if (!editForm.value.id) return
   
   try {
-    await axios.put(`/admin/users/${editForm.value.id}`, {
+    await axios.put(`/api/admin/users/${editForm.value.id}`, {
       email: editForm.value.email,
       displayName: editForm.value.displayName
     }, {
@@ -462,7 +462,7 @@ const saveUser = async () => {
 
 const toggleUserStatus = async (userId: number, status: number) => {
   try {
-    await axios.put(`/admin/users/${userId}/status`, { status }, {
+    await axios.put(`/api/admin/users/${userId}/status`, { status }, {
       headers: { Authorization: `Bearer ${token}` }
     })
     loadUsers()
@@ -644,7 +644,7 @@ const updateUserRole = async () => {
   if (!selectedUser.value) return
   
   try {
-    const response = await axios.put(`/admin/permissions/users/${selectedUser.value.id}/role`, {
+    const response = await axios.put(`/api/admin/permissions/users/${selectedUser.value.id}/role`, {
       role: selectedRole.value
     }, {
       headers: { Authorization: `Bearer ${token}` }

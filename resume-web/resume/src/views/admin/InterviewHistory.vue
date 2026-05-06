@@ -1,7 +1,7 @@
 <template>
   <div class="interview-management">
     <div class="page-header">
-      <h2>面试管理</h2>
+      <h2>面试分析</h2>
       <p>查看和管理所有用户的面试历史</p>
     </div>
 

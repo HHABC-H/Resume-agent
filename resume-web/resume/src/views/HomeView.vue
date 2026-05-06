@@ -6,6 +6,8 @@
       <nav class="nav-menu">
         <router-link to="/" class="nav-item active">论坛</router-link>
         <router-link to="/resume/upload" class="nav-item">简历助手</router-link>
+        <router-link to="/resume/edit" class="nav-item">编辑简历</router-link>
+        <router-link to="/my-resumes" class="nav-item">我的简历</router-link>
         <router-link to="/reading" class="nav-item">在线阅读</router-link>
         <router-link :to="interviewLink" class="nav-item">面试助手</router-link>
         <router-link to="/profile" class="nav-item">个人信息</router-link>
@@ -42,6 +44,7 @@
             <div class="tab-buttons">
               <button :class="{ active: currentTab === 'latest' }" @click="switchTab('latest')">最新</button>
               <button :class="{ active: currentTab === 'hot' }" @click="switchTab('hot')">热门</button>
+              <button :class="{ active: currentTab === 'top' }" @click="switchTab('top')">置顶</button>
             </div>
             <router-link to="/forum/publish" class="btn-write">
               <span class="write-icon">✏️</span>
@@ -61,8 +64,8 @@
               <div v-for="post in posts" :key="post.id" class="post-item" @click="router.push(`/forum/post/${post.id}`)">
                 <div class="post-left">
                   <div class="post-title">
-                    <span v-if="post.status === 1" class="badge essence">精华</span>
-                    <span v-if="post.status === 2" class="badge top">置顶</span>
+                    <span v-if="post.isEssence" class="badge essence">精华</span>
+                    <span v-if="post.isTop" class="badge top">置顶</span>
                     <span class="category-tag" v-if="post.categoryName">{{ post.categoryName }}</span>
                     <span class="title-text">{{ post.title }}</span>
                   </div>
@@ -189,6 +192,8 @@ const loadPosts = async (pageNum = 0) => {
     let url = `/api/forum?page=${pageNum}&size=20`
     if (currentTab.value === 'hot') {
       url = `/api/forum/hot?page=${pageNum}&size=20`
+    } else if (currentTab.value === 'top') {
+      url = `/api/forum/top?page=${pageNum}&size=20`
     }
     const response = await axios.get(url)
     posts.value = response.data.data?.content || response.data?.content || []
