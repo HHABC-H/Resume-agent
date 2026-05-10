@@ -391,28 +391,42 @@ const goBack = () => {
 
 .main-layout {
   display: flex;
-  gap: 2rem;
+  gap: 2.5rem;
   margin-bottom: 2rem;
+  align-items: flex-start;
 }
 
 .resume-section {
-  flex: 1;
+  flex: 1.2;
   min-width: 400px;
 }
 
+.resume-section h3 {
+  margin-bottom: 0.8rem;
+  color: #495057;
+  font-size: 15px;
+  font-weight: 600;
+}
+
 .resume-content {
-  padding: 1rem;
-  max-height: 600px;
+  padding: 1.25rem;
+  height: calc(100vh - 350px);
+  min-height: 400px;
   overflow-y: auto;
   white-space: pre-wrap;
-  line-height: 1.6;
+  line-height: 1.7;
   font-family: 'Courier New', Courier, monospace;
   background-color: #fafafa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
+  color: #333;
+  font-size: 13px;
 }
 
 .analysis-section {
   flex: 1;
-  min-width: 400px;
+  min-width: 380px;
 }
 
 .score-section {
